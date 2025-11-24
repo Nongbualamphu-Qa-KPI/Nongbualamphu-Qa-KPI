@@ -1,0 +1,22 @@
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model QARecord {
+  id             String   @id @default(cuid())
+  departmentId   String
+  departmentName String
+  fiscalYear     Int
+  month          String
+  data           Json
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  @@unique([departmentId, fiscalYear, month], name: "qa_unique_index")
+  @@index([departmentId, fiscalYear], name: "qa_dept_year_idx")
+}
