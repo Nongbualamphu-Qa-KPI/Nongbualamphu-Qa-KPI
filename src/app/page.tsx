@@ -120,50 +120,122 @@ const FIELD_LABELS: Record<string, string> = {
   note: "หมายเหตุ"
 };
 
-const SECTIONS: { key: string; title: string; fields: string[] }[] = [
+const FIELD_PREFIX: Record<string, string> = {
+  s1_1: "1.1",
+  s1_2: "1.2",
+  s1_3: "1.3",
+  s1_4: "1.4",
+  s1_5: "1.5",
+  s1_6_1: "1.6.1",
+  s1_6_2: "1.6.2",
+  s1_6_3: "1.6.3",
+  s1_6_4: "1.6.4",
+  pressureUlcerRate: "1.6",
+  s1_7: "1.7",
+  s1_8: "1.8",
+  s1_9: "1.9",
+  s1_10: "1.10",
+  s2_1: "2.1",
+  s2_2: "2.2",
+  readmissionRate: "2",
+  s3_1: "3.1",
+  daysInMonth: "3",
+  averageLOS: "3",
+  s4_a: "4.A",
+  s4_b: "4.B",
+  s4_c: "4.C",
+  rnHr: "4",
+  auxHr: "4",
+  ratioRnAux: "4",
+  actualHPPD: "4",
+  productivityValue: "4",
+  s7_1: "7.1",
+  s7_2: "7.2",
+  s7_3: "7.3",
+  s8_1: "8.1",
+  s8_2: "8.2",
+  s8_3: "8.3",
+  s8_4: "8.4",
+  s8_5: "8.5",
+  s9_1_1: "9.1",
+  s9_1_2: "9.2",
+  painTotal: "9",
+  s9_2_1: "9.3",
+  s9_2_2: "9.4",
+  s9_2_3: "9.5",
+  s9_3_1: "10.1",
+  s9_3_2: "10.2",
+  recordCompleteness: "10",
+  note: "หมายเหตุ"
+};
+
+const FORMULA_HINTS: Record<string, string> = {
+  pressureUlcerRate: "สูตร: (1.6.1 / 1.6.4) × 1000",
+  readmissionRate: "สูตร: (2.1 / 2.2) × 100",
+  averageLOS: "สูตร: 3.1 / จำนวนวันในเดือน",
+  productivityValue: "สูตร: (B × HPPD × 100) / RN hrs",
+  actualHPPD: "สูตร: (A × 7) / B",
+  rnHr: "สูตร: A × 7",
+  auxHr: "สูตร: (A + C) × 7",
+  ratioRnAux: "สูตร: RN hr / Auxiliary hr",
+  painTotal: "สูตร: รวม 9.1 + 9.2",
+  recordCompleteness: "สูตร: (10.1 / 10.2) × 100"
+};
+
+const SECTION_CONFIG = [
   {
     key: "s1",
-    title: "S11. ความปลอดภัยของผู้ใช้บริการ",
+    title: "1. ความปลอดภัยของผู้ใช้บริการ",
+    icon: "🛡️",
     fields: ["s1_1", "s1_2", "s1_3", "s1_4", "s1_5"]
   },
   {
     key: "s1_6",
-    title: "S11.6 ตัวชี้วัดแผลกดทับ",
+    title: "1.6 ตัวชี้วัดแผลกดทับ",
+    icon: "📑",
     fields: ["s1_6_1", "s1_6_2", "s1_6_3", "s1_6_4", "pressureUlcerRate"]
   },
   {
     key: "s1_other",
-    title: "S11.7 – S11.10 อุบัติการณ์อื่น ๆ",
+    title: "1.7 – 1.10 อุบัติการณ์อื่น ๆ",
+    icon: "⚠️",
     fields: ["s1_7", "s1_8", "s1_9", "s1_10"]
   },
   {
     key: "s2",
-    title: "S22. อัตราการกลับเข้ารับการรักษาซ้ำ",
+    title: "2. อัตราการกลับเข้ารับการรักษาซ้ำ",
+    icon: "🔄",
     fields: ["s2_1", "s2_2", "readmissionRate"]
   },
   {
     key: "s3",
-    title: "S33. ระยะวันนอนเฉลี่ย",
+    title: "3. ระยะวันนอนเฉลี่ย",
+    icon: "🛏️",
     fields: ["s3_1", "daysInMonth", "averageLOS"]
   },
   {
     key: "s4",
-    title: "Productivity & HPPD",
-    fields: ["s4_a", "s4_b", "s4_c", "rnHr", "auxHr", "ratioRnAux", "actualHPPD", "productivityValue"]
+    title: "4. ผลิตภาพและอัตรากำลัง (Productivity & Staffing)",
+    icon: "📈",
+    fields: ["s4_a", "s4_b", "s4_c", "rnHr", "auxHr", "ratioRnAux", "actualHPPD", "productivityValue"],
+    highlight: true
   },
   {
     key: "s7",
-    title: "CPR",
+    title: "7. CPR",
+    icon: "❤️",
     fields: ["s7_1", "s7_2", "s7_3"]
   },
   {
     key: "s8",
-    title: "SOS Scores",
+    title: "8. SOS Scores",
+    icon: "⚠️",
     fields: ["s8_1", "s8_2", "s8_3", "s8_4", "s8_5"]
   },
   {
     key: "s11",
-    title: "การจัดการความปวด (Pain Management)",
+    title: "9–10. ข้อมูลเฉพาะหอผู้ป่วยหนัก",
+    icon: "🛏️",
     fields: [
       "s9_1_1",
       "s9_1_2",
@@ -174,7 +246,8 @@ const SECTIONS: { key: string; title: string; fields: string[] }[] = [
       "s9_3_1",
       "s9_3_2",
       "recordCompleteness"
-    ]
+    ],
+    icuOnly: true
   }
 ];
 
@@ -270,6 +343,8 @@ export default function HomePage() {
   const [yearData, setYearData] = useState<{
     [month: string]: { id: string; updatedAt: string } | undefined;
   }>({});
+
+  const [activeTab, setActiveTab] = useState<"form" | "table">("form");
 
   const isLoggedIn = !!currentDept && role === "user";
 
@@ -439,61 +514,283 @@ export default function HomePage() {
     setFields(prev => computeFields({ ...prev, [id]: value }, fiscalYear, month));
   }
 
+  function renderComputedHint(id: string) {
+    const hint = FORMULA_HINTS[id];
+    return (
+      <p className="mt-2 text-[11px] text-amber-800 bg-amber-50 border border-dashed border-amber-200 rounded-lg px-3 py-2">
+        {hint || "คำนวณอัตโนมัติจากข้อมูลในหัวข้อเดียวกัน"}
+      </p>
+    );
+  }
+
+  function renderFieldInput(fieldId: string) {
+    const label = FIELD_LABELS[fieldId] || fieldId;
+    const prefix = FIELD_PREFIX[fieldId];
+    const isComputed = COMPUTED_FIELDS.has(fieldId);
+    const value = fields[fieldId] ?? "";
+
+    return (
+      <div key={fieldId} className="flex flex-col gap-1">
+        <label className="text-xs font-semibold text-slate-700">
+          {prefix ? `${prefix} ` : ""}{label}
+          {isComputed && <span className="ml-1 text-[10px] text-indigo-500">(คำนวณอัตโนมัติ)</span>}
+        </label>
+        <input
+          type="text"
+          value={value}
+          readOnly={isComputed}
+          onChange={e => !isComputed && handleFieldChange(fieldId, e.target.value)}
+          className={`w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 transition ${
+            isComputed
+              ? "bg-blue-50 border-blue-200 text-blue-900 focus:ring-blue-300"
+              : "border-slate-200 bg-white focus:ring-indigo-500"
+          }`}
+        />
+        {isComputed && renderComputedHint(fieldId)}
+      </div>
+    );
+  }
+
   /* ------------------------------- UI: Login ------------------------------- */
 
   if (!isLoggedIn) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-indigo-600 via-purple-500 to-sky-500 flex items-center justify-center px-4">
-        <div className="relative w-full max-w-md">
-          <div className="absolute -inset-1 rounded-3xl bg-gradient-to-r from-indigo-400 via-sky-400 to-emerald-400 opacity-70 blur-lg" />
-          <div className="relative bg-white rounded-3xl shadow-2xl px-7 py-8 space-y-6">
-            <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-gradient-to-br from-indigo-500 to-sky-500 flex items-center justify-center text-2xl text-white shadow-md">
-                🏥
-              </div>
-              <div>
-                <h1 className="text-xl font-bold text-gray-800">
-                  ระบบบันทึกข้อมูล QA
-                </h1>
-                <p className="text-xs text-gray-500">
-                  โรงพยาบาลหนองบัวลำภู · รอบเดือน / ปีงบประมาณ
-                </p>
-              </div>
+      <div className="min-h-screen bg-gradient-to-br from-purple-800 via-purple-600 to-indigo-400 flex items-center justify-center px-4 py-10">
+        <div className="w-full max-w-lg">
+          <div className="relative bg-white/90 backdrop-blur rounded-3xl shadow-2xl overflow-hidden">
+            <div className="absolute -top-10 left-1/2 -translate-x-1/2 flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 text-white text-3xl shadow-lg">
+              🏥
             </div>
+            <div className="pt-14 px-8 pb-8 space-y-6">
+              <div className="text-center space-y-1">
+                <h1 className="text-2xl font-bold text-slate-800">ระบบบันทึกข้อมูล QA</h1>
+                <p className="text-sm text-slate-500">โรงพยาบาลหนองบัวลำภู</p>
+              </div>
 
-            <div className="flex bg-slate-100 rounded-xl p-1 text-xs font-medium">
-              <button
-                className={`flex-1 py-2 rounded-lg transition ${
-                  role === "user"
-                    ? "bg-white text-indigo-600 shadow-sm"
-                    : "text-slate-600 hover:bg-slate-200"
-                }`}
-                onClick={() => {
-                  setRole("user");
-                  setPassword("");
-                }}
-              >
-                ผู้ใช้งานแผนก
-              </button>
-              <button
-                className={`flex-1 py-2 rounded-lg transition ${
-                  role === "admin"
-                    ? "bg-white text-indigo-600 shadow-sm"
-                    : "text-slate-600 hover:bg-slate-200"
-                }`}
-                onClick={() => {
-                  setRole("admin");
-                  setSelectedDeptId("");
-                  setPassword("");
-                }}
-              >
-                ผู้ดูแลระบบ
-              </button>
+              <div className="grid grid-cols-2 bg-slate-100 rounded-xl p-1 text-sm font-medium">
+                <button
+                  className={`flex items-center justify-center gap-2 py-2 rounded-lg transition ${
+                    role === "user"
+                      ? "bg-purple-600 text-white shadow"
+                      : "bg-white text-slate-700 hover:bg-slate-50"
+                  }`}
+                  onClick={() => {
+                    setRole("user");
+                    setPassword("");
+                  }}
+                >
+                  <span>👤</span>
+                  ผู้ใช้งาน
+                </button>
+                <button
+                  className={`flex items-center justify-center gap-2 py-2 rounded-lg transition ${
+                    role === "admin"
+                      ? "bg-purple-600 text-white shadow"
+                      : "bg-white text-slate-700 hover:bg-slate-50"
+                  }`}
+                  onClick={() => {
+                    setRole("admin");
+                    setSelectedDeptId("");
+                    setPassword("");
+                  }}
+                >
+                  <span>🛡️</span>
+                  ผู้ดูแลระบบ
+                </button>
+              </div>
+
+              {alert && (
+                <div
+                  className={`border-l-4 p-3 rounded text-xs ${
+                    alert.type === "success"
+                      ? "bg-emerald-50 border-emerald-500 text-emerald-800"
+                      : alert.type === "warning"
+                      ? "bg-amber-50 border-amber-500 text-amber-800"
+                      : "bg-rose-50 border-rose-500 text-rose-800"
+                  }`}
+                >
+                  {alert.message}
+                </div>
+              )}
+
+              <form className="space-y-4" onSubmit={handleLogin}>
+                {role === "user" && (
+                  <div className="space-y-1">
+                    <label className="flex items-center gap-2 text-xs font-semibold text-slate-700">
+                      <span>🏥</span>
+                      เลือกแผนก
+                    </label>
+                    <select
+                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                      value={selectedDeptId}
+                      onChange={e => setSelectedDeptId(e.target.value)}
+                    >
+                      <option value="">-- เลือกแผนก --</option>
+                      {DEPARTMENTS.map(d => (
+                        <option key={d.id} value={d.id}>
+                          {d.name}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                )}
+
+                <div className="space-y-1">
+                  <label className="flex items-center gap-2 text-xs font-semibold text-slate-700">
+                    <span>🔒</span>
+                    รหัสผ่าน {role === "admin" ? "(Admin)" : ""}
+                  </label>
+                  <input
+                    type="password"
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
+                    value={password}
+                    onChange={e => setPassword(e.target.value)}
+                    placeholder={role === "admin" ? "admin@nbl2568" : "รหัสผ่านแผนก"}
+                  />
+                </div>
+
+                <button
+                  type="submit"
+                  className="w-full py-3 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-500 text-white text-sm font-semibold shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition flex items-center justify-center gap-2"
+                >
+                  <span>➜</span>
+                  เข้าสู่ระบบ
+                </button>
+              </form>
+
+              <p className="text-[11px] text-slate-400 text-center">
+                * เวอร์ชันนี้เน้นฟอร์มบันทึกข้อมูลระดับแผนกก่อน ส่วนหน้า Dashboard รวมสามารถต่อยอดเพิ่มภายหลังได้
+              </p>
             </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  /* ------------------------------ UI: Main Page ----------------------------- */
+
+  return (
+    <div className="min-h-screen bg-slate-100 flex flex-col">
+      <header className="bg-gradient-to-r from-purple-700 via-indigo-600 to-blue-500 text-white shadow-md">
+        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-xl shadow-inner">
+              📊
+            </div>
+            <div>
+              <h1 className="text-base md:text-lg font-semibold leading-tight">ระบบบันทึกข้อมูล QA</h1>
+              <p className="text-[11px] md:text-xs text-indigo-100">โรงพยาบาลหนองบัวลำภู • แบบบันทึกรายเดือนตามตัวชี้วัดคุณภาพ</p>
+            </div>
+          </div>
+          <div className="flex items-center gap-3">
+            <div className="text-right text-xs">
+              <div className="opacity-80">แผนก</div>
+              <div className="font-semibold truncate max-w-[200px]">{currentDept?.name}</div>
+            </div>
+            <button
+              onClick={handleLogout}
+              className="px-3 py-1.5 rounded-full bg-white/20 hover:bg-white/30 text-[11px] font-medium"
+            >
+              ออกจากระบบ
+            </button>
+          </div>
+        </div>
+        <nav className="bg-white text-slate-700 border-b border-slate-200">
+          <div className="max-w-6xl mx-auto px-4 flex gap-6 text-sm font-semibold">
+            <button
+              className={`relative py-3 transition ${
+                activeTab === "form"
+                  ? "text-purple-600"
+                  : "text-slate-500 hover:text-slate-800"
+              }`}
+              onClick={() => setActiveTab("form")}
+            >
+              บันทึกข้อมูล
+              {activeTab === "form" && <span className="absolute inset-x-0 -bottom-px h-1 bg-purple-500 rounded-full" />}
+            </button>
+            <button
+              className={`relative py-3 transition ${
+                activeTab === "table"
+                  ? "text-purple-600"
+                  : "text-slate-500 hover:text-slate-800"
+              }`}
+              onClick={() => setActiveTab("table")}
+            >
+              ตารางแสดงข้อมูล
+              {activeTab === "table" && <span className="absolute inset-x-0 -bottom-px h-1 bg-purple-500 rounded-full" />}
+            </button>
+          </div>
+        </nav>
+      </header>
+
+      <main className="flex-1 max-w-6xl mx-auto px-4 py-6 space-y-5 w-full">
+        {activeTab === "table" ? (
+          <section className="bg-white rounded-xl shadow-sm p-6 text-center text-sm text-slate-500 border border-dashed border-slate-200">
+            ตารางแสดงข้อมูล (coming soon)
+          </section>
+        ) : (
+          <>
+            <section className="bg-white rounded-2xl shadow-sm p-5 border border-slate-100">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center">📅</div>
+                <div>
+                  <h2 className="text-base font-semibold text-slate-800">เลือกปีงบประมาณและเดือน</h2>
+                  <p className="text-xs text-slate-500">ปรับช่วงเวลาที่ต้องการบันทึกข้อมูลแล้วกด "โหลดข้อมูล"</p>
+                </div>
+              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-semibold text-slate-600">ปีงบประมาณ (พ.ศ.)</label>
+                  <select
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    value={fiscalYear}
+                    onChange={e => setFiscalYear(e.target.value)}
+                  >
+                    {FISCAL_YEARS.map(y => (
+                      <option key={y} value={y}>
+                        {y}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="space-y-1">
+                  <label className="block text-[11px] font-semibold text-slate-600">เดือน</label>
+                  <select
+                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                    value={month}
+                    onChange={e => setMonth(e.target.value)}
+                  >
+                    {MONTHS_TH.map(m => (
+                      <option key={m} value={m}>
+                        {m}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+                <div className="flex flex-col md:flex-row items-stretch md:items-end gap-2">
+                  <button
+                    type="button"
+                    onClick={handleLoadPeriod}
+                    className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-500 text-white text-sm font-semibold shadow hover:shadow-md"
+                  >
+                    <span>🔍</span> โหลดข้อมูล
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleLoadYear}
+                    className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-slate-100 text-slate-700 text-sm font-medium hover:bg-slate-200"
+                  >
+                    🔄 อัปเดตสถานะรายปี
+                  </button>
+                </div>
+              </div>
+              {loading && <p className="text-[11px] text-slate-500 mt-2">กำลังดำเนินการ...</p>}
+            </section>
 
             {alert && (
               <div
-                className={`border-l-4 p-3 rounded text-xs ${
+                className={`border-l-4 p-3 rounded text-xs md:text-sm ${
                   alert.type === "success"
                     ? "bg-emerald-50 border-emerald-500 text-emerald-800"
                     : alert.type === "warning"
@@ -505,351 +802,117 @@ export default function HomePage() {
               </div>
             )}
 
-            <form className="space-y-4" onSubmit={handleLogin}>
-              {role === "user" && (
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 mb-1">
-                    แผนก
-                  </label>
-                  <select
-                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    value={selectedDeptId}
-                    onChange={e => setSelectedDeptId(e.target.value)}
+            <section className="grid grid-cols-1 lg:grid-cols-4 gap-4">
+              <form
+                onSubmit={handleSave}
+                className="lg:col-span-3 space-y-4"
+              >
+                {SECTION_CONFIG.map(section => (
+                  <div
+                    key={section.key}
+                    className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 space-y-4"
                   >
-                    <option value="">-- เลือกแผนก --</option>
-                    {DEPARTMENTS.map(d => (
-                      <option key={d.id} value={d.id}>
-                        {d.name}
-                      </option>
-                    ))}
-                  </select>
+                    <div className="flex items-start justify-between gap-3">
+                      <div className="flex items-center gap-3">
+                        <span className="w-9 h-9 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center text-lg">
+                          {section.icon}
+                        </span>
+                        <h3 className="text-sm md:text-base font-semibold text-slate-800">{section.title}</h3>
+                      </div>
+                      {section.icuOnly && (
+                        <span className="text-[11px] px-3 py-1 rounded-full bg-blue-50 text-blue-700 border border-blue-200">
+                          แสดงเฉพาะ ICU
+                        </span>
+                      )}
+                    </div>
+
+                    {section.highlight && (
+                      <div className="bg-gradient-to-r from-emerald-500 via-teal-500 to-green-500 text-white rounded-xl p-4 shadow-inner">
+                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                          <div>
+                            <p className="text-xs uppercase tracking-wide opacity-90">Productivity</p>
+                            <div className="text-2xl font-bold">{fields.productivityValue || "0.00%"}</div>
+                            <p className="text-sm text-emerald-50">เกณฑ์คือ ≥80%</p>
+                          </div>
+                          <div className="text-sm bg-white/15 rounded-lg px-3 py-2">
+                            สูตร: (B × HPPD × 100) / RN hrs
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {section.fields.map(renderFieldInput)}
+                    </div>
+                  </div>
+                ))}
+
+                <div className="bg-white rounded-2xl shadow-sm border border-dashed border-emerald-300 p-5">
+                  <label className="block text-xs font-semibold text-emerald-800 mb-1">{FIELD_LABELS.note}</label>
+                  <textarea
+                    rows={3}
+                    className="w-full rounded-lg border-2 border-emerald-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
+                    value={fields.note ?? ""}
+                    onChange={e => handleFieldChange("note", e.target.value)}
+                    placeholder="กรอกหมายเหตุเพิ่มเติม เช่น ข้อมูลยังไม่ครบ / อยู่ระหว่างทบทวน ฯลฯ"
+                  />
                 </div>
-              )}
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-700 mb-1">
-                  รหัสผ่าน {role === "admin" ? "(Admin)" : ""}
-                </label>
-                <input
-                  type="password"
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  value={password}
-                  onChange={e => setPassword(e.target.value)}
-                  placeholder={role === "admin" ? "admin@nbl2568" : "รหัสผ่านแผนก"}
-                />
-              </div>
-
-              <button
-                type="submit"
-                className="w-full py-2.5 rounded-xl bg-gradient-to-r from-indigo-500 via-purple-500 to-sky-500 text-white text-sm font-semibold shadow-md hover:shadow-lg hover:-translate-y-0.5 transition"
-              >
-                เข้าสู่ระบบ
-              </button>
-            </form>
-
-            <p className="text-[11px] text-slate-400 text-center">
-              * เวอร์ชันนี้เน้นฟอร์มบันทึกข้อมูลระดับแผนกก่อน
-              ส่วนหน้า Dashboard รวมสามารถต่อยอดเพิ่มภายหลังได้
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  /* ------------------------------ UI: Main Page ----------------------------- */
-
-  return (
-    <div className="min-h-screen bg-slate-100 flex flex-col">
-      {/* Header */}
-      <header className="bg-gradient-to-r from-indigo-600 via-purple-600 to-sky-500 text-white shadow-md">
-        <div className="max-w-6xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-xl">
-              📊
-            </div>
-            <div>
-              <h1 className="text-base md:text-lg font-semibold leading-tight">
-                ระบบบันทึกข้อมูล QA
-              </h1>
-              <p className="text-[11px] md:text-xs text-indigo-100">
-                โรงพยาบาลหนองบัวลำภู • แบบบันทึกรายเดือนตามตัวชี้วัดคุณภาพ
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="text-right text-xs">
-              <div className="opacity-80">แผนก</div>
-              <div className="font-semibold truncate max-w-[180px]">
-                {currentDept?.name}
-              </div>
-            </div>
-            <button
-              onClick={handleLogout}
-              className="px-3 py-1.5 rounded-lg bg-white/15 hover:bg-white/25 text-[11px] font-medium"
-            >
-              ออกจากระบบ
-            </button>
-          </div>
-        </div>
-      </header>
-
-      <main className="flex-1 max-w-6xl mx-auto px-4 py-5 space-y-5">
-        {/* แถวบน: filter + สรุปสถานะ */}
-        <section className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-          {/* เลือกปี / เดือน */}
-          <div className="lg:col-span-2 bg-white rounded-xl shadow-sm p-4">
-            <h2 className="text-sm md:text-base font-semibold mb-3 flex items-center gap-2 text-slate-800">
-              <span className="inline-flex items-center justify-center w-7 h-7 rounded-lg bg-indigo-100 text-indigo-600 text-sm">
-                📅
-              </span>
-              เลือกปีงบประมาณและเดือน
-            </h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-              <div>
-                <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                  ปีงบประมาณ (พ.ศ.)
-                </label>
-                <select
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  value={fiscalYear}
-                  onChange={e => setFiscalYear(e.target.value)}
-                >
-                  {FISCAL_YEARS.map(y => (
-                    <option key={y} value={y}>
-                      {y}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div>
-                <label className="block text-[11px] font-semibold text-slate-600 mb-1">
-                  เดือน
-                </label>
-                <select
-                  className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                  value={month}
-                  onChange={e => setMonth(e.target.value)}
-                >
-                  {MONTHS_TH.map(m => (
-                    <option key={m} value={m}>
-                      {m}
-                    </option>
-                  ))}
-                </select>
-              </div>
-              <div className="flex items-end gap-2">
-                <button
-                  type="button"
-                  onClick={handleLoadPeriod}
-                  className="flex-1 px-3 py-2 rounded-lg bg-indigo-600 text-white text-xs md:text-sm font-medium shadow hover:bg-indigo-700"
-                >
-                  โหลดข้อมูลเดือนนี้
-                </button>
-                <button
-                  type="button"
-                  onClick={handleLoadYear}
-                  className="hidden md:inline-flex px-3 py-2 rounded-lg bg-slate-100 text-slate-700 text-xs font-medium hover:bg-slate-200"
-                >
-                  อัปเดตสถานะรายปี
-                </button>
-              </div>
-            </div>
-            {loading && (
-              <p className="text-[11px] text-slate-500 mt-2">
-                กำลังดำเนินการ...
-              </p>
-            )}
-          </div>
-
-          {/* สรุป key metrics */}
-          <div className="bg-gradient-to-br from-sky-500 via-emerald-500 to-teal-500 rounded-xl text-white p-4 shadow-sm flex flex-col gap-3">
-            <div className="flex items-center justify-between">
-              <span className="text-xs uppercase tracking-wide opacity-90">
-                สรุปตัวชี้วัดเดือนนี้
-              </span>
-              <span className="text-[11px] bg-white/20 px-2 py-0.5 rounded-full">
-                {month} {fiscalYear}
-              </span>
-            </div>
-            <div className="grid grid-cols-2 gap-3 text-xs">
-              <div>
-                <div className="opacity-90">อัตราแผลกดทับ</div>
-                <div className="text-lg font-semibold">
-                  {fields.pressureUlcerRate || "-"}
+                <div className="flex flex-col md:flex-row gap-3 pt-2">
+                  <button
+                    type="submit"
+                    className="flex-1 py-3 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-sky-500 text-white font-semibold shadow-md hover:shadow-lg hover:-translate-y-0.5 transition text-sm"
+                  >
+                    💾 บันทึกข้อมูลเดือนนี้
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setFields(computeFields({}, fiscalYear, month))}
+                    className="flex-1 py-3 rounded-xl bg-slate-100 text-slate-700 font-semibold shadow-sm hover:bg-slate-200 transition text-sm"
+                  >
+                    🧹 ล้างฟอร์ม
+                  </button>
                 </div>
-              </div>
-              <div>
-                <div className="opacity-90">Readmission</div>
-                <div className="text-lg font-semibold">
-                  {fields.readmissionRate || "-"}
-                </div>
-              </div>
-              <div>
-                <div className="opacity-90">LOS เฉลี่ย (วัน)</div>
-                <div className="text-lg font-semibold">
-                  {fields.averageLOS || "-"}
-                </div>
-              </div>
-              <div>
-                <div className="opacity-90">Productivity</div>
-                <div className="text-lg font-semibold">
-                  {fields.productivityValue || "-"}
-                </div>
-              </div>
-            </div>
-            <p className="text-[11px] opacity-80">
-              ค่าด้านบนจะอัปเดตอัตโนมัติเมื่อลงข้อมูลในฟอร์มด้านล่าง
-            </p>
-          </div>
-        </section>
+              </form>
 
-        {/* Alert */}
-        {alert && (
-          <div
-            className={`border-l-4 p-3 rounded text-xs md:text-sm ${
-              alert.type === "success"
-                ? "bg-emerald-50 border-emerald-500 text-emerald-800"
-                : alert.type === "warning"
-                ? "bg-amber-50 border-amber-500 text-amber-800"
-                : "bg-rose-50 border-rose-500 text-rose-800"
-            }`}
-          >
-            {alert.message}
-          </div>
-        )}
-
-        {/* ฟอร์มหลัก + สถานะรายเดือน */}
-        <section className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-          {/* ฟอร์ม */}
-          <form
-            onSubmit={handleSave}
-            className="lg:col-span-3 space-y-4 bg-white rounded-xl shadow-sm p-4 md:p-5"
-          >
-            {SECTIONS.map(section => (
-              <div
-                key={section.key}
-                className="border border-slate-100 rounded-xl p-4 bg-gradient-to-br from-slate-50 to-white"
-              >
-                <div className="flex items-center justify-between mb-3">
-                  <h3 className="text-sm md:text-base font-semibold text-slate-800 flex items-center gap-2">
-                    <span className="w-7 h-7 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center text-xs">
-                      {section.key.toUpperCase()}
-                    </span>
-                    {section.title}
-                  </h3>
+              <aside className="bg-white rounded-2xl shadow-sm p-5 border border-slate-100 flex flex-col gap-3 lg:sticky lg:top-4 h-fit">
+                <div className="flex items-center justify-between mb-1">
+                  <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
+                    <span className="text-purple-500">📌</span>
+                    สถานะข้อมูลรายเดือน
+                  </h2>
+                  <span className="text-[10px] text-slate-500">ปีงบประมาณ {fiscalYear}</span>
                 </div>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                  {section.fields.map(fieldId => {
-                    const label = FIELD_LABELS[fieldId] || fieldId;
-                    const isComputed = COMPUTED_FIELDS.has(fieldId);
-                    const value = fields[fieldId] ?? "";
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2 text-[11px]">
+                  {MONTHS_TH.map(m => {
+                    const rec = yearData[m];
+                    const hasData = !!rec;
                     return (
-                      <div key={fieldId} className="flex flex-col gap-1">
-                        <label className="text-xs font-semibold text-slate-600">
-                          {label}{" "}
-                          {isComputed && (
-                            <span className="text-[10px] text-indigo-500">
-                              (คำนวณอัตโนมัติ)
-                            </span>
+                      <div
+                        key={m}
+                        className={`rounded-lg border px-2.5 py-2 ${
+                          hasData ? "border-emerald-400 bg-emerald-50" : "border-amber-300 bg-amber-50"
+                        }`}
+                      >
+                        <div className="font-semibold text-slate-800 truncate">{m}</div>
+                        <div className="mt-0.5">
+                          {hasData ? (
+                            <span className="text-emerald-700">มีข้อมูลแล้ว</span>
+                          ) : (
+                            <span className="text-amber-700">ยังไม่มีข้อมูล</span>
                           )}
-                        </label>
-                        <input
-                          type="text"
-                          value={value}
-                          readOnly={isComputed}
-                          onChange={e =>
-                            !isComputed && handleFieldChange(fieldId, e.target.value)
-                          }
-                          className={`w-full rounded-lg border px-3 py-1.5 text-sm focus:outline-none focus:ring-2 ${
-                            isComputed
-                              ? "bg-sky-50 border-sky-200 text-sky-800 focus:ring-sky-300"
-                              : "border-slate-200 focus:ring-indigo-500"
-                          }`}
-                        />
+                        </div>
                       </div>
                     );
                   })}
                 </div>
-              </div>
-            ))}
-
-            {/* หมายเหตุ */}
-            <div className="border border-dashed border-emerald-300 rounded-xl p-4 bg-emerald-50/60">
-              <label className="block text-xs font-semibold text-emerald-800 mb-1">
-                {FIELD_LABELS.note}
-              </label>
-              <textarea
-                rows={3}
-                className="w-full rounded-lg border-2 border-emerald-200 px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500 bg-white"
-                value={fields.note ?? ""}
-                onChange={e => handleFieldChange("note", e.target.value)}
-                placeholder="กรอกหมายเหตุเพิ่มเติม เช่น ข้อมูลยังไม่ครบ / อยู่ระหว่างทบทวน ฯลฯ"
-              />
-            </div>
-
-            {/* ปุ่ม */}
-            <div className="flex flex-col md:flex-row gap-3 pt-2">
-              <button
-                type="submit"
-                className="flex-1 py-2.5 rounded-xl bg-gradient-to-r from-emerald-500 via-teal-500 to-sky-500 text-white font-semibold shadow-md hover:shadow-lg hover:-translate-y-0.5 transition text-sm"
-              >
-                💾 บันทึกข้อมูลเดือนนี้
-              </button>
-              <button
-                type="button"
-                onClick={() => setFields(computeFields({}, fiscalYear, month))}
-                className="flex-1 py-2.5 rounded-xl bg-slate-100 text-slate-700 font-semibold shadow-sm hover:bg-slate-200 transition text-sm"
-              >
-                🧹 ล้างฟอร์ม
-              </button>
-            </div>
-          </form>
-
-          {/* สถานะข้อมูลรายเดือน */}
-          <aside className="bg-white rounded-xl shadow-sm p-4 flex flex-col gap-3">
-            <div className="flex items-center justify-between mb-1">
-              <h2 className="text-sm font-semibold text-slate-800 flex items-center gap-2">
-                <span className="text-purple-500">📌</span>
-                สถานะข้อมูลรายเดือน
-              </h2>
-              <span className="text-[10px] text-slate-500">
-                ปีงบประมาณ {fiscalYear}
-              </span>
-            </div>
-            <div className="grid grid-cols-2 gap-2 text-[11px]">
-              {MONTHS_TH.map(m => {
-                const rec = yearData[m];
-                const hasData = !!rec;
-                return (
-                  <div
-                    key={m}
-                    className={`rounded-lg border px-2.5 py-2 ${
-                      hasData
-                        ? "border-emerald-400 bg-emerald-50"
-                        : "border-amber-300 bg-amber-50"
-                    }`}
-                  >
-                    <div className="font-semibold text-slate-800 truncate">
-                      {m}
-                    </div>
-                    <div className="mt-0.5">
-                      {hasData ? (
-                        <span className="text-emerald-700">มีข้อมูลแล้ว</span>
-                      ) : (
-                        <span className="text-amber-700">ยังไม่มีข้อมูล</span>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-            <p className="text-[10px] text-slate-500 mt-1">
-              * หลังบันทึกข้อมูล ระบบจะอัปเดตสถานะเดือนนั้นเป็น “มีข้อมูลแล้ว”
-              ใช้เป็น checklist ให้แผนกเห็นภาพรวมทั้งปี
-            </p>
-          </aside>
-        </section>
+                <p className="text-[10px] text-slate-500 mt-1">
+                  * หลังบันทึกข้อมูล ระบบจะอัปเดตสถานะเดือนนั้นเป็น “มีข้อมูลแล้ว” ใช้เป็น checklist ให้แผนกเห็นภาพรวมทั้งปี
+                </p>
+              </aside>
+            </section>
+          </>
+        )}
       </main>
     </div>
   );
