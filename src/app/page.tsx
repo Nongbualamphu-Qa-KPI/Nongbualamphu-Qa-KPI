@@ -1,8 +1,9 @@
 'use client';
 
 import type React from "react";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import Swal from "sweetalert2";
+import { AdminPanel } from "@/components/admin";
 
 import {
   BarChart,
@@ -20,6 +21,8 @@ import {
   Tooltip,
   Legend,
   ResponsiveContainer,
+  ReferenceLine,
+  LabelList,
 } from "recharts";
 import {
   TrendingUp,
@@ -32,6 +35,24 @@ import {
   FileText,
   AlertCircle,
   CheckCircle,
+  LayoutDashboard,
+  ClipboardEdit,
+  Settings,
+  ChevronLeft,
+  ChevronRight,
+  Building2,
+  Download,
+  Search,
+  Bell,
+  LogOut,
+  Menu,
+  X,
+  BarChart3,
+  PieChart as PieChartIcon,
+  Database,
+  Layers,
+  Target,
+  Gauge,
 } from "lucide-react";
 
 // Override Swal for consistent behavior
@@ -47,39 +68,66 @@ const SwalCustom = {
 
 /* ----------------------------- CONFIG พื้นฐาน ----------------------------- */
 
-type Role = "user" | "admin";
+type Role = "user" | "special_unit" | "opd" | "admin";
 
 type Department = {
   id: string;
   name: string;
-  password: string;
   isIcu?: boolean;
   icuType?: "ICU-MED_1" | "ICU-MED_2" | "NICU" | "ICU_รวม";
 };
 
+
+type SectionConfig = {
+  key: string;
+  title: string;
+  icon: string;
+  fields: string[];
+  highlight?: boolean;
+};
+
 const DEPARTMENTS: Department[] = [
-  { id: "DEPT001", name: "หอผู้ป่วยอายุรกรรมชาย", password: "MED_M2568" },
-  { id: "DEPT002", name: "หอผู้ป่วยอายุรกรรมหญิง", password: "MED_F2568" },
-  { id: "DEPT003", name: "หอผู้ป่วยจิตเวช", password: "PSY2568" },
-  { id: "DEPT004", name: "หอผู้ป่วยพิเศษรวมน้ำใจ", password: "SPEC_NJ2568" },
-  { id: "DEPT005", name: "หอผู้ป่วยศัลยกรรมชาย", password: "SURG_M2568" },
-  { id: "DEPT006", name: "หอผู้ป่วยศัลยกรรมหญิง", password: "SURG_F2568" },
-  { id: "DEPT007", name: "หอผู้ป่วยหนักอายุรกรรมชั้น 1(ICU-MED_1)", password: "ICUMED12568", isIcu: true, icuType: "ICU-MED_1" },
-  { id: "DEPT008", name: "หอผู้ป่วยหนักอายุรกรรมชั้น 2(ICU-MED_2)", password: "ICUMED22568", isIcu: true, icuType: "ICU-MED_2" },
-  { id: "DEPT009", name: "หอผู้ป่วยกระดูกและข้อ", password: "ORTHO2568" },
-  { id: "DEPT010", name: "หอผู้ป่วยพิเศษอายุรกรรมชั้น4", password: "SPECMED42568" },
-  { id: "DEPT011", name: "หอผู้ป่วยพิเศษศัลยกรรมชั้น4", password: "SPECSURG42568" },
-  { id: "DEPT012", name: "หอผู้ป่วยกุมารเวช", password: "PEDS2568" },
-  { id: "DEPT013", name: "หอผู้ป่วยอภิบาลสงฆ์", password: "MONK2568" },
-  { id: "DEPT014", name: "หอผู้ป่วยโสต ศอ นาสิก", password: "ENT2568" },
-  { id: "DEPT015", name: "หอผู้ป่วยพิเศษสูติ-นรีเวช ชั้น5", password: "SPECOBGYN52568" },
-  { id: "DEPT016", name: "หอผู้ป่วยพิเศษสูติ-นรีเวช ชั้น4", password: "SPECOBGYN42568" },
-  { id: "DEPT017", name: "หอผู้ป่วยพิเศษกุมารเวช", password: "SPECPEDS2568" },
-  { id: "DEPT018", name: "หอผู้ป่วยศัลยกรรมระบบประสาทและสมอง", password: "NEURO2568" },
-  { id: "DEPT019", name: "หอผู้ป่วยหนักกุมารเวช(NICU)", password: "NICU2568", isIcu: true, icuType: "NICU" },
-  { id: "DEPT020", name: "หอผู้ป่วยสูติ-นรีเวช (PP)", password: "PP2568" },
-  { id: "DEPT021", name: "หอผู้ป่วยหนักรวม(ICU_รวม)", password: "ICU2568", isIcu: true, icuType: "ICU_รวม" },
-  { id: "ADMIN", name: "ผู้ดูแลระบบ", password: "admin@nbl2568" }
+  { id: "DEPT001", name: "หอผู้ป่วยอายุรกรรมชาย" },
+  { id: "DEPT002", name: "หอผู้ป่วยอายุรกรรมหญิง" },
+  { id: "DEPT003", name: "หอผู้ป่วยจิตเวช" },
+  { id: "DEPT004", name: "หอผู้ป่วยพิเศษรวมน้ำใจ" },
+  { id: "DEPT005", name: "หอผู้ป่วยศัลยกรรมชาย" },
+  { id: "DEPT006", name: "หอผู้ป่วยศัลยกรรมหญิง" },
+  { id: "DEPT007", name: "หอผู้ป่วยหนักอายุรกรรมชั้น 1(ICU-MED_1)", isIcu: true, icuType: "ICU-MED_1" },
+  { id: "DEPT008", name: "หอผู้ป่วยหนักอายุรกรรมชั้น 2(ICU-MED_2)", isIcu: true, icuType: "ICU-MED_2" },
+  { id: "DEPT009", name: "หอผู้ป่วยกระดูกและข้อ" },
+  { id: "DEPT010", name: "หอผู้ป่วยพิเศษอายุรกรรมชั้น4" },
+  { id: "DEPT011", name: "หอผู้ป่วยพิเศษศัลยกรรมชั้น4" },
+  { id: "DEPT012", name: "หอผู้ป่วยกุมารเวช" },
+  { id: "DEPT013", name: "หอผู้ป่วยอภิบาลสงฆ์" },
+  { id: "DEPT014", name: "หอผู้ป่วยโสต ศอ นาสิก" },
+  { id: "DEPT015", name: "หอผู้ป่วยพิเศษสูติ-นรีเวช ชั้น5" },
+  { id: "DEPT016", name: "หอผู้ป่วยพิเศษสูติ-นรีเวช ชั้น4" },
+  { id: "DEPT017", name: "หอผู้ป่วยพิเศษกุมารเวช" },
+  { id: "DEPT018", name: "หอผู้ป่วยศัลยกรรมระบบประสาทและสมอง" },
+  { id: "DEPT019", name: "หอผู้ป่วยหนักกุมารเวช(NICU)", isIcu: true, icuType: "NICU" },
+  { id: "DEPT020", name: "หอผู้ป่วยสูติ-นรีเวช (PP)" },
+  { id: "DEPT021", name: "หอผู้ป่วยหนักรวม(ICU_รวม)", isIcu: true, icuType: "ICU_รวม" },
+
+  // หน่วยงานพิเศษ - Special Units
+  { id: "SPECIAL001", name: "ห้องผ่าตัด (OR)" },
+  { id: "SPECIAL002", name: "ห้องอุบัติเหตุ ฉุกเฉิน (ER)" },
+  { id: "SPECIAL003", name: "วิสัญญีพยาบาล (Anesth)" },
+  { id: "SPECIAL004", name: "ห้องคลอด (LR)" },
+
+  // แผนกผู้ป่วยนอก - OPD Departments
+  { id: "OPD001", name: "OPD ศัลยกรรม" },
+  { id: "OPD002", name: "OPD กุมารเวช" },
+  { id: "OPD003", name: "OPD (Med+GP+Ortho+หัวใจ+พิเศษ)" },
+  { id: "OPD004", name: "OPD ANC" },
+  { id: "OPD005", name: "OPD Uro" },
+  { id: "OPD006", name: "OPD Neuro" },
+  { id: "OPD007", name: "OPD จักษุ" },
+  { id: "OPD008", name: "OPD ENT" },
+  { id: "OPD009", name: "OPD DM/HT" },
+  { id: "OPD010", name: "OPD CAPD" },
+
+  { id: "ADMIN", name: "ผู้ดูแลระบบ" }
 ];
 
 const MONTHS_TH = [
@@ -153,8 +201,183 @@ const COMPUTED_FIELDS = new Set([
   "actualHPPD",
   "productivityValue",
   "s11_1_total",
-  "s11_3_rate"
+  "s11_3_rate",
+  // OR computed fields
+  "or_2_3",      // อัตราความพึงพอใจ
+  "or_h2_1_3",   // % Elective case prep
+  "or_h2_3_3",   // % Post-op assessment
+  // ER computed fields  
+  "er_2_3",         // อัตราความพึงพอใจ
+  "er_pm_3_3",      // % Pain management documentation  
+  "er_h3_1_3",      // % Triage correct
+  "er_h3_2_1_3",    // % Critical care <4min
+  "er_h3_3_3",      // % Patient transfer
+  // Anesth computed fields
+  "an_2_3",      // อัตราความพึงพอใจ
+  "an_h2_3_3",   // % Pain management documentation
+  "an_h3_1_3",   // % Pre-op preparation
+  "an_h3_3_3",   // % Post-op monitoring
+  "an_h3_4_3",   // % Recovery room discharge
+  "an_h3_5_3",   // % Anesthesia explanation
+  // LR computed fields
+  "lr_1_6_5",         // อัตราการเกิดแผลกดทับ
+  "lr_2_3",           // RN hr / Auxiliary hr ratio
+  "lr_2_6",           // HPPD
+  "lr_2_productivity", // Productivity %
+  "lr_pm_3_3",        // % Pain management documentation
+  "lr_h2_1_6_3",      // % Post Partum Haemorrhage
+  "lr_h2_3_3",        // Birth Asphyxia rate per 1000 LB
+  // OPD computed fields
+  "opd_cpr_rate",     // CPR Success Rate %
+  "opd_pain_3_result" // Pain management documentation completeness %
 ]);
+
+// Admin View Types for Sidebar Navigation
+type AdminView = "dashboard" | "data_entry" | "export" | "settings";
+
+// Admin Sidebar Component
+interface AdminSidebarProps {
+  activeView: AdminView;
+  onViewChange: (view: AdminView) => void;
+  isCollapsed: boolean;
+  onToggleCollapse: () => void;
+  currentDeptName: string;
+  onLogout: () => void;
+}
+
+function AdminSidebar({
+  activeView,
+  onViewChange,
+  isCollapsed,
+  onToggleCollapse,
+  currentDeptName,
+  onLogout
+}: AdminSidebarProps) {
+  const menuItems: Array<{ id: AdminView; icon: React.ReactNode; label: string; description: string }> = [
+    {
+      id: "dashboard",
+      icon: <LayoutDashboard className="w-5 h-5" />,
+      label: "Dashboard",
+      description: "ภาพรวมผลลัพธ์ KPI"
+    },
+    {
+      id: "data_entry",
+      icon: <ClipboardEdit className="w-5 h-5" />,
+      label: "จัดการข้อมูล",
+      description: "ดู/แก้ไขข้อมูลรายแผนก"
+    },
+    {
+      id: "export",
+      icon: <Download className="w-5 h-5" />,
+      label: "Export ข้อมูล",
+      description: "ดาวน์โหลด Excel"
+    },
+    {
+      id: "settings",
+      icon: <Settings className="w-5 h-5" />,
+      label: "ตั้งค่าระบบ",
+      description: "การตั้งค่าทั่วไป"
+    }
+  ];
+
+  return (
+    <aside
+      className={`
+        fixed left-0 top-0 h-full z-40
+        bg-gradient-to-b from-slate-900 via-slate-800 to-slate-900
+        border-r border-slate-700/50
+        transition-all duration-300 ease-in-out
+        flex flex-col
+        ${isCollapsed ? "w-20" : "w-72"}
+      `}
+    >
+      {/* Sidebar Header */}
+      <div className="relative p-4 border-b border-slate-700/50">
+        <div className={`flex items-center ${isCollapsed ? "justify-center" : "gap-3"}`}>
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-500 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/30">
+            <Building2 className="w-5 h-5 text-white" />
+          </div>
+          {!isCollapsed && (
+            <div className="flex-1 min-w-0">
+              <h2 className="text-sm font-bold text-white truncate">QA Admin</h2>
+              <p className="text-xs text-slate-400 truncate">โรงพยาบาลหนองบัวลำภู</p>
+            </div>
+          )}
+        </div>
+
+        {/* Collapse Toggle Button */}
+        <button
+          onClick={onToggleCollapse}
+          className="absolute -right-3 top-1/2 -translate-y-1/2 w-6 h-6 rounded-full bg-slate-800 border border-slate-700 flex items-center justify-center text-slate-400 hover:text-white hover:bg-slate-700 transition-all shadow-lg"
+        >
+          {isCollapsed ? <ChevronRight className="w-3 h-3" /> : <ChevronLeft className="w-3 h-3" />}
+        </button>
+      </div>
+
+      {/* Navigation Menu */}
+      <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
+        {menuItems.map((item) => {
+          const isActive = activeView === item.id;
+          return (
+            <button
+              key={item.id}
+              onClick={() => onViewChange(item.id)}
+              className={`
+                w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-200
+                ${isActive
+                  ? "bg-gradient-to-r from-indigo-600/80 to-purple-600/80 text-white shadow-lg shadow-indigo-500/20"
+                  : "text-slate-400 hover:text-white hover:bg-slate-700/50"
+                }
+                ${isCollapsed ? "justify-center" : ""}
+              `}
+              title={isCollapsed ? item.label : undefined}
+            >
+              <span className={`flex-shrink-0 ${isActive ? "text-white" : ""}`}>
+                {item.icon}
+              </span>
+              {!isCollapsed && (
+                <div className="flex-1 text-left min-w-0">
+                  <p className="text-sm font-medium truncate">{item.label}</p>
+                  <p className={`text-xs truncate ${isActive ? "text-indigo-200" : "text-slate-500"}`}>
+                    {item.description}
+                  </p>
+                </div>
+              )}
+              {isActive && !isCollapsed && (
+                <div className="w-1.5 h-1.5 rounded-full bg-white animate-pulse" />
+              )}
+            </button>
+          );
+        })}
+      </nav>
+
+      {/* User Section */}
+      <div className={`p-4 border-t border-slate-700/50 ${isCollapsed ? "text-center" : ""}`}>
+        {!isCollapsed && (
+          <div className="mb-3 px-3">
+            <p className="text-xs text-slate-500">เข้าสู่ระบบในฐานะ</p>
+            <p className="text-sm font-medium text-white truncate">{currentDeptName}</p>
+          </div>
+        )}
+        <button
+          onClick={onLogout}
+          className={`
+            w-full flex items-center gap-2 px-3 py-2.5 rounded-xl
+            bg-rose-500/10 text-rose-400 hover:bg-rose-500/20 hover:text-rose-300
+            transition-all duration-200
+            ${isCollapsed ? "justify-center" : ""}
+          `}
+          title={isCollapsed ? "ออกจากระบบ" : undefined}
+        >
+          <LogOut className="w-4 h-4" />
+          {!isCollapsed && <span className="text-sm font-medium">ออกจากระบบ</span>}
+        </button>
+      </div>
+    </aside>
+  );
+}
+
+
 
 const FIELD_LABELS: Record<string, string> = {
   // Section 1: ความปลอดภัยของผู้ใช้บริการ
@@ -163,30 +386,30 @@ const FIELD_LABELS: Record<string, string> = {
   s1_3: "1.3 จำนวนอุบัติการณ์ความผิดพลาดในการบริหารยา (Drug Admin Error) ตั้งแต่ระดับ C ขึ้นไป",
   s1_4: "1.4 จำนวนอุบัติการณ์ความผิดพลาดในการให้เลือดและ/หรือส่วนประกอบของเลือด",
   s1_5: "1.5 จำนวนอุบัติการณ์การตายอย่างไม่คาดคิด",
-  
+
   // Section 1.6: ตัวชี้วัดแผลกดทับ
   s1_6_1: "1.6.1 จำนวนผู้ป่วยเกิดแผลกดทับรายใหม่ stage 2",
   s1_6_2: "1.6.2 จำนวนผู้ป่วยเสี่ยงในเวรบ่าย",
   s1_6_3: "1.6.3 จำนวนผู้ป่วยเกิดแผลกดทับรายใหม่",
-  s1_6_4: "1.6.4 จำนวนวันนอนรวมของผู้ป่วยกลุ่มเสี่ยงต่อการเป็นแผลกดทับ (คลอดทั้งเดือน)",
+  s1_6_4: "1.6.4 จำนวนวันนอนรวมของผู้ป่วยกลุ่มเสี่ยงต่อการเป็นแผลกดทับ (ตลอดทั้งเดือน)",
   pressureUlcerRate: "อัตราการเกิดแผลกดทับ (Auto-calculated)",
-  
+
   // Section 1.7-1.10
   s1_7: "1.7 จำนวนอุบัติการณ์การพลัดตกหกล้ม",
   s1_8: "1.8 จำนวน ผป.บาดเจ็บจากการจัดท่า การผูกยึด การใช้อุปกรณ์และเครื่องมือ",
   s1_9: "1.9 จำนวนการเกิดอุบัติเหตุจากการปฏิบัติงานของบุคลากรฯ",
   s1_10: "1.10 จำนวนยา/เวชภัณฑ์/อุปกรณ์ทางการแพทย์หมดอายุเหลือค้าง",
-  
+
   // Section 2: อัตราการกลับเข้ารับการรักษาซ้ำ
   s2_1: "2.1 จำนวน ผป. ที่กลับเข้ารับการรักษาซ้ำด้วยโรค/อาการเดิมภายใน 28 วัน",
   s2_2: "2.2 จำนวน ผป. ทั้งหมดในเดือนก่อนหน้านี้",
   readmissionRate: "อัตราการกลับเข้ารับการรักษาซ้ำ (%) (Auto-calculated)",
-  
+
   // Section 3: ระยะวันนอนเฉลี่ย
   s3_1: "3.1 จำนวนวันนอนรวม",
   daysInMonth: "จำนวนวันในเดือน (Auto-detected)",
   averageLOS: "ระยะวันนอนเฉลี่ย (Auto-calculated)",
-  
+
   // Section 4: ผลิตภาพและอัตรากำลัง
   s4_1: "4. A [Staff/Day] - จำนวน จนท. ขึ้นเวร (ไม่รวมหัวหน้าและ NA)",
   s4_2: "5. B [Patient Days] - ผลรวมผู้ป่วย / Day",
@@ -196,27 +419,27 @@ const FIELD_LABELS: Record<string, string> = {
   ratioRnAux: "Ratio RN/Aux",
   actualHPPD: "Actual HPPD",
   productivityValue: "Productivity (%)",
-  
+
   // Section 7: CPR
   s7_1: "จำนวน pt. CPR",
   s7_2: "จำนวนครั้งที่ CPR ทั้งหมด",
   s7_3: "จำนวนครั้ง CPR สำเร็จ",
-  
+
   // Section 8: SOS Scores
   s8_1: "8.1 จำนวนผู้ป่วยที่ได้รับการเฝ้าระวังอาการฯ ทั้งหมด",
   s8_2: "8.2 จำนวนผู้ป่วยที่ได้รับการประเมินล่าช้า",
   s8_3: "8.3 จำนวนครั้งที่ผู้ป่วยที่ได้รับการประเมินล่าช้า",
   s8_4: "8.4 จำนวนผู้ป่วยที่ได้รับการเฝ้าระวังอาการไม่สอดคล้องกับความรุนแรง",
   s8_5: "8.5 จำนวนครั้งที่เฝ้าระวังอาการผู้ป่วยไม่สอดคล้องกับความรุนแรง",
-  
+
   // Section 9: เฉพาะ ICU - ย้าย ผป.กลับเข้า ICU
   s9_return: "9. ย้าย ผป.กลับเข้า ICU อย่างไม่คาดคิดภายใน 3 วัน (ราย)",
-  
+
   // Section 10: เฉพาะ ICU - Unplan ICU
   // For ICU-MED_1 & ICU-MED_2
   s10_1_med_male: "10.1 อายุรกรรมชาย (ราย)",
   s10_2_med_female: "10.2 อายุรกรรมหญิง (ราย)",
-  
+
   // For ICU_รวม (ตาม PDF)
   s10_1_med_male_icu: "10.1 อายุรกรรมชาย (Med ชาย) - ราย",
   s10_2_med_female_icu: "10.2 อายุรกรรมหญิง (Med หญิง) - ราย",
@@ -228,7 +451,7 @@ const FIELD_LABELS: Record<string, string> = {
   s10_8_ent: "10.8 หอผู้ป่วยโสต ศอ นาสิก ENT - ราย",
   s10_9_uro: "10.9 ศัลยกรรมระบบทางเดินปัสสาวะ URO - ราย",
   s10_10_neuro: "10.10 ศัลยกรรมระบบประสาทและสมอง NEURO - ราย",
-  
+
   // Section 11: การจัดการความปวด (Pain Management)
   s11_1_1: "11.1.1 จำนวนครั้งของผู้ป่วยที่มีการบันทึกการจัดการความปวด (โดยการใช้ยา)",
   s11_1_2: "11.1.2 จำนวนครั้งของผู้ป่วยที่ได้รับการจัดการความปวด (โดยการไม่ใช้ยา)",
@@ -239,12 +462,257 @@ const FIELD_LABELS: Record<string, string> = {
   s11_3_1: "11.3.1 จำนวนครั้งของผู้ป่วยที่มีการบันทึกการจัดการความปวดในเวชระเบียน",
   s11_3_2: "11.3.2 จำนวนครั้งของผู้ป่วยที่ได้รับการจัดการความปวดทั้งหมด",
   s11_3_rate: "ร้อยละความครบถ้วน (%) (Auto-calculated)",
-  
-  note: "หมายเหตุ"
+
+  note: "หมายเหตุ",
+
+  // ========== OR (ห้องผ่าตัด) Fields ==========
+  //1: ด้านความปลอดภัยและความพึงพอใจ
+  or_1_1: "1.1 จำนวนอุบัติการณ์การระบุตัว ผป.ผิดคน",
+  or_1_2: "1.2 จำนวนอุบัติการณ์ให้การรักษาพยาบาลผิดคน",
+  or_1_3: "1.3 จำนวนอุบัติการณ์ความผิดพลาดในการบริหารยา (Drug Admin Error) ตั้งแต่ระดับ C ขึ้นไป",
+  or_1_4: "1.4 จำนวนอุบัติการณ์ความผิดพลาดในการให้เลือดและ/หรือส่วนประกอบของเลือด",
+  or_1_5: "1.5 จำนวนอุบัติการณ์การตายอย่างไม่คาดคิด",
+  or_1_6: "1.6 จำนวนอุบัติการณ์การพลัดตกหกล้ม",
+  or_1_7: "1.7 จำนวนอุบัติการณ์ผู้ป่วยบาดเจ็บจากการจัดท่า, การผูกยึด, การใช้อุปกรณ์และเครื่องมือ",
+  or_1_8: "1.8 จำนวนอุบัติการณ์การเกิดอุบัติเหตุจากการปฏิบัติงานของบุคลากร",
+  or_1_9: "1.9 จำนวนยา/เวชภัณฑ์/อุปกรณ์ทางการแพทย์หมดอายุเหลือค้าง",
+  or_2_1: "2.1 ผลรวมและคะแนนความพึงพอใจ",
+  or_2_2: "2.2 ผลรวมคะแนนเต็ม",
+  or_2_3: "2.3 อัตราความพึงพอใจต่อการบริการ (>85%) (Auto-calculated)",
+  or_3: "3. จำนวนเวร oncall ที่จัดขึ้นโดยไม่ได้รับค่าตอบแทน",
+  or_4_1: "4.1 จำนวน pt. ที่เสียชีวิตโดยไม่คาดคิด",
+  or_4_2: "4.2 จำนวน pt. ที่ Unplan ICU",
+  or_5_1: "5.1 จำนวน pt. CPR",
+  or_5_2: "5.2 จำนวนครั้ง CPR ทั้งหมด",
+  or_5_3: "5.3 จำนวนครั้ง CPR สำเร็จ",
+  //2: ด้านคุณภาพการให้บริการพยาบาล
+  or_h2_1_1: "1.1 จำนวนผู้ป่วยที่ได้รับการเตรียม (Elective case)",
+  or_h2_1_2: "1.2 จำนวนผู้ป่วยที่เข้าทั้งหมด",
+  or_h2_1_3: "1.3 ร้อยละของผู้ป่วยที่ได้รับการประเมินฯ (100%) (Auto-calculated)",
+  or_h2_2_1: "2.1 จำนวนอุบัติการณ์การผ่าตัดผิดคนหรือผิดตำแหน่ง",
+  or_h2_2_2: "2.2 จำนวนอุบัติการณ์มีสิ่งของ/อุปกรณ์ตกค้างในร่างกายผป.หลังผ่าตัด",
+  or_h2_2_3: "2.3 จำนวนอุบัติการณ์การเกิดอุบัติเหตุที่ป้องกันได้ของผู้ป่วย",
+  or_h2_3_1: "3.1 จำนวนผู้ป่วยหลังผ่าตัดได้รับการประเมินอาการและสอนการปฏิบัติตัว",
+  or_h2_3_2: "3.2 จำนวนผู้ป่วยผ่าตัดทั้งหมด",
+  or_h2_3_3: "3.3 ร้อยละของผู้ป่วยหลังผ่าตัดได้รับการประเมินอาการ (100%) (Auto-calculated)",
+
+  // ========== ER (ห้องอุบัติเหตุ ฉุกเฉิน) Fields ==========
+  //  1
+  er_1_1: "1.1 จำนวนอุบัติการณ์ การระบุตัว ผป. ผิดคน",
+  er_1_2: "1.2 จำนวนอุบัติการณ์ให้การรักษาพยาบาลผิดคน",
+  er_1_3: "1.3 จำนวนอุบัติการณ์ความผิดพลาด ในการบริหารยา (Drug Admin Error) ตั้งแต่ระดับ C ขึ้นไป",
+  er_1_4: "1.4 จำนวนอุบัติการณ์ความผิดพลาดในการให้เลือดและ/หรือส่วนประกอบของเลือด",
+  er_1_5: "1.5 จำนวนอุบัติการณ์การตายอย่างไม่คาดคิด",
+  er_1_6: "1.6 จำนวนอุบัติการณ์การพลัดตกหกล้ม",
+  er_1_7: "1.7 จำนวนอุบัติการณ์ผู้ป่วยบาดเจ็บจากการจัดท่า, การผูกยึด, การใช้อุปกรณ์และเครื่องมือ",
+  er_1_8: "1.8 จำนวนอุบัติการณ์การเกิดอุบัติเหตุจากการปฏิบัติงานของบุคลากรฯ",
+  er_1_9: "1.9 จำนวนยา/เวชภัณฑ์/อุปกรณ์ทางการแพทย์หมดอายุเหลือค้าง",
+  er_2_1: "2.1 ผลรวมและคะแนนความพึงพอใจ",
+  er_2_2: "2.2 ผลรวมคะแนนเต็ม",
+  er_2_3: "2.3 อัตราความพึงพอใจต่อการบริการ (>85%) (Auto-calculated)",
+  er_3: "3. จำนวนเวร oncall ที่จัดขึ้นโดยไม่ได้รับค่าตอบแทน",
+  er_4_1: "4.1 จำนวน pt. ที่เสียชีวิตโดยไม่คาดคิด",
+  er_4_2: "4.2 จำนวน pt. ที่ Unplan ICU",
+  er_5_1: "5.1 จำนวน pt. CPR",
+  er_5_2: "5.2 จำนวนครั้ง CPR ทั้งหมด",
+  er_5_3: "5.3 จำนวนครั้ง CPR สำเร็จ",
+
+  // Pain Management (การจัดการความปวด)
+  er_pm_1: "1. จำนวนครั้งของผู้ป่วยที่ได้รับการจัดการความปวด (ทั้งหมด)",
+  er_pm_1_1: "1.1 จำนวนครั้งของผู้ป่วยที่ได้รับการจัดการความปวดโดยการใช้ยา",
+  er_pm_1_2: "1.2 จำนวนครั้งของผู้ป่วยที่ได้รับการจัดการความปวดโดยการไม่ใช้ยา",
+  er_pm_2_1: "2.1 Acute Pain (ความปวดเฉียบพลัน)",
+  er_pm_2_2: "2.2 Chronic Pain (ความปวดเรื้อรัง)",
+  er_pm_2_3: "2.3 Palliative Care Pain Management (การจัดการความปวดแบบประคับประคอง)",
+  er_pm_3_1: "3.1 จำนวนครั้งของผู้ป่วยที่มีการบันทึกการจัดการความปวดในเวชระเบียน",
+  er_pm_3_2: "3.2 จำนวนครั้งของผู้ป่วยที่ได้รับการจัดการความปวดทั้งหมด",
+  er_pm_3_3: "3.3 ร้อยละความครบถ้วนของการบันทึกการจัดการความปวด (≥80%) (Auto-calculated)",
+
+  // หัวตี้ 3: ด้านคุณภาพการให้บริการพยาบาล
+  er_h3_1_1: "1.1 จำนวนผู้ป่วยได้รับการคัดกรองถูกต้อง",
+  er_h3_1_2: "1.2 จำนวนผู้ป่วยที่ได้รับการคัดกรองทั้งหมด",
+  er_h3_1_3: "1.3 ร้อยละของผู้ป่วยได้รับการคัดกรองถูกต้อง (100%) (Auto-calculated)",
+  er_h3_2_1_1: "2.1.1 จำนวนผู้ป่วยที่อยู่ในภาวะคุกคามชีวิตได้รับการแก้ไขทันทีภายใน 4 นาที",
+  er_h3_2_1_2: "2.1.2 จำนวนผู้ป่วยที่อยู่ในภาวะคุกคามชีวิตทั้งหมด",
+  er_h3_2_1_3: "2.1.3 ร้อยละของผู้ป่วยที่อยู่ในภาวะคุกคามชีวิตได้รับการแก้ไขทันที (100%) (Auto-calculated)",
+  er_h3_2_2: "2.2 จำนวนอุบัติการณ์การประเมินกายความทรุดหนักไม่ถูกต้อง",
+  er_h3_2_3: "2.3 จำนวนอุบัติการณ์การตายอย่างไม่คาดคิดป้องกันได้ (Preventable Death)",
+  er_h3_3_1: "3.1 จำนวนผู้ป่วยที่ส่งต่อได้รับการดูแลต่อเนื่องทันทีที่ถึง รพ.",
+  er_h3_3_2: "3.2 จำนวนผู้ป่วยที่ส่งต่อทั้งหมด",
+  er_h3_3_3: "3.3 ร้อยละของผู้ป่วยที่ส่งต่อได้รับการดูแลต่อเนื่อง (>80%) (Auto-calculated)",
+  er_h3_4: "4. จำนวนอุบัติการณ์การกลับมารักษาซ้ำภายใน 48 ชม. ด้วยอาการรุนแรงจากสาเหตุความไม่รู้วิธีการเฝ้าสังเกตอาการผิดปกติหรือการดูแลสุขภาพตนเอง",
+
+  // ========== Anesth (วิสัญญีพยาบาล) Fields ==========
+  // 1
+  an_1_1: "1.1 จำนวนอุบัติการณ์การระบุตัว ผป. ผิดคน",
+  an_1_2: "1.2 จำนวนอุบัติการณ์ให้การรักษาพยาบาลผิดคน",
+  an_1_3: "1.3 จำนวนอุบัติการณ์ความผิดพลาดในการบริหารยา (Drug Admin Error) ตั้งแต่ระดับ C ขึ้นไป",
+  an_1_4: "1.4 จำนวนอุบัติการณ์ความผิดพลาดในการให้เลือดและ/หรือส่วนประกอบของเลือด",
+  an_1_5: "1.5 จำนวนอุบัติการณ์การตายอย่างไม่คาดคิด",
+  an_1_6: "1.6 จำนวนอุบัติการณ์การพลัดตกหกล้ม",
+  an_1_7: "1.7 จำนวนอุบัติการณ์ผู้ป่วยบาดเจ็บจากการจัดท่า, การผูกยึด, การใช้อุปกรณ์และเครื่องมือ",
+  an_1_8: "1.8 จำนวนอุบัติการณ์การเกิดอุบัติเหตุจากการปฏิบัติงานของบุคลากร",
+  an_1_9: "1.9 จำนวนยา/เวชภัณฑ์/อุปกรณ์ทางการแพทย์หมดอายุเหลือค้าง",
+  an_2_1: "2.1 ผลรวมและคะแนนความพึงพอใจ",
+  an_2_2: "2.2 ผลรวมคะแนนเต็ม",
+  an_2_3: "2.3 อัตราความพึงพอใจต่อการบริการ (>85%) (Auto-calculated)",
+  an_3: "3. จำนวนเวร oncall ที่จัดขึ้นโดยไม่ได้รับค่าตอบแทน",
+  an_4_1: "4.1 จำนวน pt. ที่เสียชีวิตโดยไม่คาดคิด",
+  an_4_2: "4.2 จำนวน pt. ที่ Unplan ICU",
+  an_5_1: "5.1 จำนวน pt. CPR",
+  an_5_2: "5.2 จำนวนครั้ง CPR ทั้งหมด",
+  an_5_3: "5.3 จำนวนครั้ง CPR สำเร็จ",
+  //  2
+  an_h2_1_1: "1. จำนวนครั้งผู้ป่วยที่มีการบันทึกการจัดการความปวดจากยา (ทั้งหมด)",
+  an_h2_1_2: "1.1 จำนวนครั้งผู้ป่วยที่มีการบันทึกการจัดการความปวดโดยใช้ยา",
+  an_h2_1_3: "1.2 จำนวนครั้งผู้ป่วยที่ได้รับการจัดการความปวดโดยไม่ใช้ยา",
+  an_h2_2_1: "2.1 Acute Pain (ความปวดเฉียบพลัน)",
+  an_h2_2_2: "2.2 Chronic Pain (ความปวดเรื้อรัง)",
+  an_h2_2_3: "2.3 Palliative Care Pain Management (การจัดการความปวดแบบประคับประคอง)",
+  an_h2_3_1: "3.1 จำนวนครั้งผู้ป่วยที่มีการบันทึกการจัดการความปวดในเวชระเบียน",
+  an_h2_3_2: "3.2 จำนวนครั้งผู้ป่วยได้รับการจัดการความปวดทั้งหมด",
+  an_h2_3_3: "3.3 ร้อยละความครบถ้วนของการบันทึกการจัดการความปวด (>80%) (Auto-calculated)",
+
+  // หัวตี้ 3: ด้านคุณภาพการให้บริการพยาบาล
+  an_h3_1_1: "1.1 จำนวนผู้ป่วยได้รับการเตรียมความพร้อมตามมาตรฐาน",
+  an_h3_1_2: "1.2 จำนวนผู้ป่วยทั้งหมด (Elective case) ทั้งหมด",
+  an_h3_1_3: "1.3 ร้อยละของผู้ป่วยทั้งหมดได้รับการเตรียมความพร้อมตามมาตรฐาน (100%) (Auto-calculated)",
+  an_h3_2_1: "2.1 จำนวนอุบัติการณ์การเกิด Aspiration",
+  an_h3_2_2: "2.2 จำนวนอุบัติการณ์การเกิดความผิดพลาดจากการใส่ท่อช่วยหายใจ",
+  an_h3_2_3: "2.3 จำนวนอุบัติการณ์การแพ้ยา",
+  an_h3_2_4: "2.4 จำนวนอุบัติการณ์ผู้ป่วยเสียชีวิตในห้องผ่าตัดเนื่องจากการให้บริการทางวิสัญญี",
+  an_h3_3_1: "3.1 จำนวนผู้ป่วยได้รับการฝ่าระวังอาการทรุดหนัก",
+  an_h3_3_2: "3.2 จำนวนผู้ป่วยที่ใช้บริการห้องพักฟื้นทั้งหมด",
+  an_h3_3_3: "3.3 ร้อยละของผู้ป่วยได้รับการฝ่าระวังอาการทรุดหนัก (100%) (Auto-calculated)",
+  an_h3_4_1: "4.1 จำนวนผู้ป่วยที่ป่วยฉอกจากห้องพักฟื้นมีความพร้อมตามเกณฑ์",
+  an_h3_4_2: "4.2 จำนวนผู้ป่วยที่ใช้บริการห้องพักฟื้นทั้งหมด",
+  an_h3_4_3: "4.3 ร้อยละของผู้ป่วยที่ป่วยฉอกมีความพร้อมตามเกณฑ์ (100%) (Auto-calculated)",
+  an_h3_5_1: "5.1 จำนวนผู้ป่วยได้รับการยื่นเหตุผลใช้บริการพยาบาลวิสัญญี",
+  an_h3_5_2: "5.2 จำนวนผู้ป่วยที่ใช้บริการพยาบาลวิสัญญีทั้งหมด",
+  an_h3_5_3: "5.3 ร้อยละของผู้ป่วยได้รับการยื่นเหตุผลใช้บริการ (100%) (Auto-calculated)",
+
+  // ========== LR (ห้องคลอด) Fields ==========
+  // หัวตี้ 1: ด้านความปลอดภัยและความพึงพอใจ
+  // 1. ความปลอดภัยของผู้ใช้บริการ
+  lr_1_1: "1.1 จำนวนอุบัติการณ์การระบุตัวผิดคน",
+  lr_1_2: "1.2 จำนวนอุบัติการณ์ให้การรักษาพยาบาลผิดคน",
+  lr_1_3: "1.3 จำนวนอุบัติการณ์ความผิดพลาดในการบริหารยา (Drug Admin Error) ตั้งแต่ระดับ C ขึ้นไป",
+  lr_1_4: "1.4 จำนวนอุบัติการณ์ความผิดพลาดในการให้เลือดและ/หรือส่วนประกอบของเลือด",
+  lr_1_5: "1.5 จำนวนอุบัติการณ์การตายอย่างไม่คาดคิด",
+  lr_1_6: "1.6 ความปลอดภัยของมารดา (Pressure Ulcer)",
+  lr_1_6_1: "1.6.1 จำนวนผู้ป่วยเกิดแผลกดทับในรายใหม่ stage 2 ขึ้นไป",
+  lr_1_6_2: "1.6.2 จำนวนผู้ป่วยเสี่ยงในเวรบ่าย",
+  lr_1_6_3: "1.6.3 จำนวนผู้ป่วยเกิดแผลกดทับในรายใหม่",
+  lr_1_6_4: "1.6.4 จำนวนวันนอนรวมของผู้ป่วยกลุ่มเสี่ยงต่อการเกิดแผลกดทับตลอดทั้งเดือน",
+  lr_1_6_5: "1.6.5 อัตราการเกิดแผลกดทับ (Auto-calculated)",
+  lr_1_7: "1.7 จำนวนอุบัติการณ์การพลัดตกหกล้ม",
+  lr_1_8: "1.8 จำนวนอุบัติการณ์ผู้ป่วยบาดเจ็บจากการจัดท่า, การผูกยึด, การใช้อุปกรณ์และเครื่องมือ",
+  lr_1_9: "1.9 จำนวนอุบัติการณ์การเกิดอุบัติเหตุจากการปฏิบัติงานของบุคลากร",
+  lr_1_10: "1.10 จำนวนยา/เวชภัณฑ์/อุปกรณ์ทางการแพทย์หมดอายุเหลือค้าง",
+
+  // 2. Production  
+  // สูตรคำนวณ Productivity (LR) = (จำนวนการคลอด x 6)+ (ไม่คลอด x 5.5) x100 / RN ไม่รวม IIN x 7
+  lr_2_1: "1. RN hr. (รวม ทน.)",
+  lr_2_2: "2. Auxiliary hr.",
+  lr_2_3: "3. RN hr. / Auxiliary hr.",
+  lr_2_4: "4. A = [ staff / day ไม่รวมหัวหน้าและNA ]",
+  lr_2_5: "5. B = [ ผลรวมผู้ป่วย / day ]",
+  lr_2_6: "6. HPPD = A x 7 / B",
+  lr_2_productivity: "Productivity (90-100%) (Auto-calculated)",
+
+  // 3-7. ตัวชี้วัดเฉพาะ
+  lr_3: "4. จำนวนเวร oncall ที่จัดขึ้นโดยไม่ได้รับค่าตอบแทน",
+
+  lr_4_1: "5. จำนวน pt. ที่เสียชีวิตโดยไม่คาดคิด",
+  lr_4_2: "จำนวน pt. ที่ Unplan ICU/NICU",
+
+  lr_5_1: "6. จำนวน pt. CPR=NCPR+PPV+BA",
+  lr_5_2: "จำนวนครั้งที่ CPR ทั้งหมด",
+  lr_5_3: "จำนวนครั้ง CPR สำเร็จ",
+
+  lr_6_1: "7. จำนวนผู้ป่วยที่ได้รับการฝ่าระวังอาการ ทั้งหมด (PIH,PPH,BA)",
+  lr_6_2: "จำนวนผู้ป่วยที่ได้รับการประเมินล่าช้า",
+  lr_6_3: "จำนวนครั้งที่ผู้ป่วยที่ได้รับการประเมินล่าช้า",
+  lr_6_4: "จำนวนผู้ป่วยที่ได้รับการฝ่าระวังอาการไม่สอดคล้องกับความรุนแรงของอาการ/โรค",
+  lr_6_5: "จำนวนครั้งที่ ฝ่าระวัง อาการผู้ป่วยไม่สอดคล้องกับความรุนแรงของอาการ/โรค",
+  lr_pm_1: "1. จำนวนครั้งของผู้ป่วยที่ได้รับการจัดการความปวด (ทั้งหมด)",
+  lr_pm_1_1: "1.1 จำนวนครั้งของผู้ป่วยที่ได้รับการจัดการความปวด โดยการใช้ยา",
+  lr_pm_1_2: "1.2 จำนวนครั้งของผู้ป่วยที่ได้รับการจัดการความปวด โดยการไม่ใช้ยา",
+  lr_pm_2_1: "2.1 Acute Pain",
+  lr_pm_2_2: "2.2 Chronic Pain",
+  lr_pm_2_3: "2.3 palliative care Pain Management",
+  lr_pm_3: "3. ร้อยละความครบถ้วนของการบันทึกการจัดการความปวดในเวชระเบียน",
+  lr_pm_3_1: "3.1 (ตัวตั้ง) จำนวนครั้งของผู้ป่วยที่มีการบันทึกการจัดการความปวดในเวชระเบียน x 100",
+  lr_pm_3_2: "3.2 (ตัวหาร) จำนวนครั้งของผู้ป่วยที่ได้รับการจัดการความปวดทั้งหมด",
+  lr_pm_3_3: "3.3 ร้อยละความครบถ้วน (Auto-calculated)",
+
+  // หัวตี้ 2: ด้านคุณภาพการให้บริการพยาบาล (ปรีการคลอด - ตัวชี้วัด 11 ตัวชี้วัด)
+  lr_h2_1: "1. จำนวนการเกิดอุบัติการณ์การเกิดภาวะแทรกซ้อนที่บึงจากเนื่องจากการฝ่าระวัง ความท่าภายหลังการคลอดผิดพลาด ได้แก่",
+  lr_h2_1_1: "1.1 การคลอดที่ห้องคลอด",
+  lr_h2_1_2: "1.2 การเกิด Uteri-Rupture",
+  lr_h2_1_3: "1.3 การเกิดมคลูกปลิ้น",
+  lr_h2_1_4: "1.4 การเกิดภาวะ Tear Rectum",
+  lr_h2_1_5: "1.5 การเกิด Hematoma บริเวณเย็บ",
+  lr_h2_1_6: "1.6 การตกเลือดหลังคลอด (Post Parturn Haemorrhage)",
+  lr_h2_1_6_1: "1.6.1 การตกเลือดหลังคลอด",
+  lr_h2_1_6_2: "1.6.2 จำนวนที่คลอดทั้งหมด",
+  lr_h2_1_6_3: "1.6.3 ร้อยละการตกเลือดหลังคลอด (< ร้อยละ1) (Auto-calculated)",
+  lr_h2_1_7: "1.7 ลืม Gauze ในช่องคลอด",
+  lr_h2_1_8: "1.8 ทารกเสียชีวิต ในมารดาที่ฟัง FHS ได้",
+  lr_h2_2: "2. จำนวนอุบัติการณ์การณ์ทารกบาดเจ็บจากกระบวนการคลอด",
+  lr_h2_3_1: "3. การเกิดภาวะขาดออกซิเจนเนื่องจาก birth asphyxia",
+  lr_h2_3_2: "4. จำนวนเด็กเกิดทั้งหมด",
+  lr_h2_3_3: "5. จำนวนอุบัติการณ์การเกิดภาวะขาด O2 เนื่องจาก Birth Asphyxia (<15:1,000LB) (Auto-calculated)",
+  lr_h2_4: "6. จำนวนอุบัติการณ์มีระบุแพทย์ทารกผิดและ/หรือส่งให้มารดาที่ผิดคน",
+
+  // ========== OPD (ผู้ป่วยนอก) Fields ==========
+  // Section 1: ความปลอดภัยของผู้ใช้บริการ
+  opd_1_1: "1.1 จำนวนอุบัติการณ์การระบุตัว ผป.ผิดคน",
+  opd_1_2: "1.2 จำนวนอุบัติการณ์ให้การรักษาพยาบาลผิดคน",
+  opd_1_3: "1.3 จำนวนอุบัติการณ์ความผิดพลาดในการบริหารยา (Drug Admin Error ตั้งแต่ระดับ E ขึ้นไป)",
+  opd_1_4: "1.4 จำนวนอุบัติการณ์ความผิดพลาดในการให้เลือดและหรือส่วนประกอบของเลือด",
+  opd_1_5: "1.5 จำนวนอุบัติการณ์การพลัดตกหกล้ม",
+  opd_1_6: "1.6 จำนวนอุบัติการณ์ผป.บาดเจ็บจากการจัดท่า,การผูกยึด,การใช้อุปกรณ์และเครื่องมือ",
+
+  // Section 2: อุบัติการณ์การตาย
+  opd_2: "2. จำนวนอุบัติการณ์การตายอย่างไม่คาดคิด",
+
+  // Section 3: อุบัติเหตุบุคลากร
+  opd_3: "3. จำนวนอุบัติการณ์การเกิดอุบัติเหตุจากการปฏิบัติงานของบุคลากรฯ",
+
+  // Section 4: ยา/เวชภัณฑ์หมดอายุ
+  opd_4: "4. จำนวนยา/เวชภัณฑ์/อุปกรณ์ทางการแพทย์หมดอายุเหลือค้าง",
+
+  // Section 5: Unexpected Death & Unplan ICU
+  opd_5_1: "5.1 จำนวน pt ที่เสียชีวิตโดยไม่คาดคิด",
+  opd_5_2: "5.2 จำนวน pt. ที่ Unplan ICU",
+
+  // Section 6: CPR
+  opd_cpr_1: "CPR 1: จำนวน pt. CPR",
+  opd_cpr_2: "CPR 2: จำนวนครั้งที่ CPR ทั้งหมด",
+  opd_cpr_3: "CPR 3: จำนวนครั้ง CPR สำเร็จ",
+  opd_cpr_rate: "CPR Success Rate (%) (Auto-calculated)",
+
+  // Section 7: Pain Management
+  opd_pain_1: "Pain 1: จำนวนครั้งของผู้ป่วยที่ได้รับการจัดการความปวด (ทั้งหมด)",
+  opd_pain_1_1: "Pain 1.1: จำนวนครั้งโดยการใช้ยา",
+  opd_pain_1_2: "Pain 1.2: จำนวนครั้งโดยการไม่ใช้ยา",
+  opd_pain_2_1: "Pain 2.1: Acute Pain",
+  opd_pain_2_2: "Pain 2.2: Chronic Pain",
+  opd_pain_2_3: "Pain 2.3: Palliative care Pain Management",
+  opd_pain_3_1: "Pain 3.1: (ตัวตั้ง) จำนวนครั้งผู้ป่วยที่มีการบันทึกการจัดการความปวดในเวชระเบียน × 100",
+  opd_pain_3_2: "Pain 3.2: (ตัวหาร) จำนวนครั้งผู้ป่วยได้รับการจัดการความปวดทั้งหมด",
+  opd_pain_3_result: "Pain 3: ร้อยละความครบถ้วนของการบันทึก (%) (Auto-calculated)",
 };
 
 // Helper function to get section configuration based on department
-function getSectionConfig(dept: Department | null) {
+function getSectionConfig(dept: Department | null): SectionConfig[] {
+  // Special Units: ห้องงานพิเศษ
+  if (dept?.id.startsWith("SPECIAL")) {
+    return getSpecialUnitSectionConfig(dept);
+  }
+
+  // Regular departments
   const baseConfig = [
     {
       key: "s1",
@@ -358,6 +826,148 @@ function getSectionConfig(dept: Department | null) {
   return baseConfig;
 }
 
+// Special Units Section Configuration
+function getSpecialUnitSectionConfig(dept: Department): SectionConfig[] {
+  // Route to unit-specific config
+  if (dept.id === "SPECIAL001") return getORSectionConfig();
+  if (dept.id === "SPECIAL002") return getERSectionConfig();
+  if (dept.id === "SPECIAL003") return getAnesthSectionConfig();
+  if (dept.id === "SPECIAL004") return getLRSectionConfig();
+  return [];
+}
+
+function getORSectionConfig() {
+  return [
+    { key: "or_section1", title: " 1.1: ความปลอดภัยของผู้ใช้บริการ", icon: "🛡️", fields: ["or_1_1", "or_1_2", "or_1_3", "or_1_4", "or_1_5", "or_1_6", "or_1_7", "or_1_8", "or_1_9"] },
+    { key: "or_section2", title: " 1.2: ความพึงพอใจต่อการบริการ", icon: "⭐", fields: ["or_2_1", "or_2_2", "or_2_3"] },
+    { key: "or_section3", title: " 1.3-4: ตัวชี้วัดเฉพาะ", icon: "📊", fields: ["or_3", "or_4_1", "or_4_2"] },
+    { key: "or_section5", title: " 1.5: CPR", icon: "❤️", fields: ["or_5_1", "or_5_2", "or_5_3"] },
+    { key: "or_h2_section1", title: " 2.1: ร้อยละของผู้ป่วยที่นัดผ่าตัด (Elective case) ได้รับการประเมินปัญหาและเตรียมความพร้อมตามมาตรฐานก่อนวันผ่าตัด", icon: "✅", fields: ["or_h2_1_1", "or_h2_1_2", "or_h2_1_3"] },
+    { key: "or_h2_section2", title: " 2.2: ความปลอดภัยของผู้ใช้บริการ", icon: "🚨", fields: ["or_h2_2_1", "or_h2_2_2", "or_h2_2_3"] },
+    { key: "or_h2_section3", title: " 2.3:  ร้อยละของผู้ป่วยหลังผ่าตัดได้รับการประเมินอาการและสอนการปฏิบัติตัวหลังผ่าตัด", icon: "🏥", fields: ["or_h2_3_1", "or_h2_3_2", "or_h2_3_3"] }
+  ];
+}
+
+function getERSectionConfig() {
+  return [
+    { key: "er_section1", title: " 1.1: ความปลอดภัยของผู้ใช้บริการ", icon: "🛡️", fields: ["er_1_1", "er_1_2", "er_1_3", "er_1_4", "er_1_5", "er_1_6", "er_1_7", "er_1_8", "er_1_9"] },
+    { key: "er_section2", title: " 1.2: ความพึงพอใจต่อการบริการ", icon: "⭐", fields: ["er_2_1", "er_2_2", "er_2_3"] },
+    { key: "er_section3", title: " 1.3-4: ตัวชี้วัดเฉพาะ", icon: "📊", fields: ["er_3", "er_4_1", "er_4_2"] },
+    { key: "er_section5", title: " 1.5: CPR", icon: "❤️", fields: ["er_5_1", "er_5_2", "er_5_3"] },
+    { key: "er_pm_section1", title: " Pain Management 1: จำนวนครั้งการจัดการความปวด", icon: "💊", fields: ["er_pm_1", "er_pm_1_1", "er_pm_1_2"] },
+    { key: "er_pm_section2", title: " Pain Management 2: ชนิดของความปวด", icon: "📋", fields: ["er_pm_2_1", "er_pm_2_2", "er_pm_2_3"] },
+    { key: "er_pm_section3", title: " Pain Management 3: ความครบถ้วนของการบันทึก", icon: "✅", fields: ["er_pm_3_1", "er_pm_3_2", "er_pm_3_3"] },
+    { key: "er_h3_section1", title: " 3.1: Triage (คัดกรอง)", icon: "🏥", fields: ["er_h3_1_1", "er_h3_1_2", "er_h3_1_3"] },
+    { key: "er_h3_section2", title: " 3.2: ความปลอดภัย", icon: "🚨", fields: ["er_h3_2_1_1", "er_h3_2_1_2", "er_h3_2_1_3", "er_h3_2_2", "er_h3_2_3"] },
+    { key: "er_h3_section3", title: " 3.3: การส่งต่อ", icon: "🚑", fields: ["er_h3_3_1", "er_h3_3_2", "er_h3_3_3"] },
+    { key: "er_h3_section4", title: " 3.4: Readmission", icon: "🔄", fields: ["er_h3_4"] }
+  ];
+}
+
+function getAnesthSectionConfig() {
+  return [
+    { key: "an_section1", title: " 1.1: ความปลอดภัยของผู้ใช้บริการ", icon: "🛡️", fields: ["an_1_1", "an_1_2", "an_1_3", "an_1_4", "an_1_5", "an_1_6", "an_1_7", "an_1_8", "an_1_9"] },
+    { key: "an_section2", title: " 1.2: ความพึงพอใจต่อการบริการ", icon: "⭐", fields: ["an_2_1", "an_2_2", "an_2_3"] },
+    { key: "an_section3", title: " 1.3-4: ตัวชี้วัดเฉพาะ", icon: "📊", fields: ["an_3", "an_4_1", "an_4_2"] },
+    { key: "an_section5", title: " 1.5: CPR", icon: "❤️", fields: ["an_5_1", "an_5_2", "an_5_3"] },
+    { key: "an_h2_section1", title: " Pain Management 1: จำนวนครั้ง", icon: "💊", fields: ["an_h2_1_1", "an_h2_1_2", "an_h2_1_3"] },
+    { key: "an_h2_section2", title: " Pain Management 2: ชนิดความปวด", icon: "📋", fields: ["an_h2_2_1", "an_h2_2_2", "an_h2_2_3"] },
+    { key: "an_h2_section3", title: " Pain Management 3: ความครบถ้วน", icon: "✅", fields: ["an_h2_3_1", "an_h2_3_2", "an_h2_3_3"] },
+    { key: "an_h3_section1", title: " 3.1: ร้อยละของผู้ป่วยได้รับการเตรียมความพร้อม", icon: "✅", fields: ["an_h3_1_1", "an_h3_1_2", "an_h3_1_3"] },
+    { key: "an_h3_section2", title: " 3.2: ความปลอดภัยของผู้ใช้บริการ", icon: "🚨", fields: ["an_h3_2_1", "an_h3_2_2", "an_h3_2_3", "an_h3_2_4"] },
+    { key: "an_h3_section3", title: " 3.3: ร้อยละผู้ป่วยได้รับการฝ่าระวังอาการทรุดหนัก", icon: "🏥", fields: ["an_h3_3_1", "an_h3_3_2", "an_h3_3_3"] },
+    { key: "an_h3_section4", title: " 3.4: ร้อยละผู้ป่วยที่ป่วยฉอกมีความพร้อม", icon: "🔍", fields: ["an_h3_4_1", "an_h3_4_2", "an_h3_4_3"] },
+    { key: "an_h3_section5", title: " 3.5: ร้อยละผู้ป่วยได้รับการยื่นเหตุผล", icon: "📝", fields: ["an_h3_5_1", "an_h3_5_2", "an_h3_5_3"] }
+  ];
+}
+
+function getLRSectionConfig() {
+  return [
+    { key: "lr_section1", title: " 1: ความปลอดภัยและความพึงพอใจ", icon: "🛡️", fields: ["lr_1_1", "lr_1_2", "lr_1_3", "lr_1_4", "lr_1_5", "lr_1_6", "lr_1_6_1", "lr_1_6_2", "lr_1_6_3", "lr_1_6_4", "lr_1_6_5", "lr_1_7", "lr_1_8", "lr_1_9", "lr_1_10"] },
+    { key: "lr_section2", title: " 2: Production & Productivity", icon: "📊", fields: ["lr_2_1", "lr_2_2", "lr_2_3", "lr_2_4", "lr_2_5", "lr_2_6", "lr_2_productivity"] },
+    { key: "lr_section3", title: " 4: Oncall", icon: "🌙", fields: ["lr_3"] },
+    { key: "lr_section4", title: " 5: ตัวชี้วัดเฉพาะ (ตาย/Unplan ICU)", icon: "🎯", fields: ["lr_4_1", "lr_4_2"] },
+    { key: "lr_section5", title: " 6: CPR", icon: "❤️", fields: ["lr_5_1", "lr_5_2", "lr_5_3"] },
+    { key: "lr_section6", title: " 7: SOS (ฝ่าระวังอาการ)", icon: "🚨", fields: ["lr_6_1", "lr_6_2", "lr_6_3", "lr_6_4", "lr_6_5"] },
+    { key: "lr_pm_section1", title: " Pain Management 1: จำนวนครั้ง", icon: "💊", fields: ["lr_pm_1", "lr_pm_1_1", "lr_pm_1_2"] },
+    { key: "lr_pm_section2", title: " Pain Management 2: ชนิดความปวด", icon: "📋", fields: ["lr_pm_2_1", "lr_pm_2_2", "lr_pm_2_3"] },
+    { key: "lr_pm_section3", title: " Pain Management 3: ความครบถ้วน", icon: "✅", fields: ["lr_pm_3", "lr_pm_3_1", "lr_pm_3_2", "lr_pm_3_3"] },
+    { key: "lr_h2_section1", title: " หัวตี้ 2: ปรีการคลอด (11 ตัวชี้วัด)", icon: "🏥", fields: ["lr_h2_1", "lr_h2_1_1", "lr_h2_1_2", "lr_h2_1_3", "lr_h2_1_4", "lr_h2_1_5", "lr_h2_1_6", "lr_h2_1_6_1", "lr_h2_1_6_2", "lr_h2_1_6_3", "lr_h2_1_7", "lr_h2_1_8", "lr_h2_2", "lr_h2_3_1", "lr_h2_3_2", "lr_h2_3_3", "lr_h2_4"] }
+  ];
+}
+
+// OPD Section Configuration (ผู้ป่วยนอก)
+function getOPDSectionConfig(): SectionConfig[] {
+  return [
+    {
+      key: "opd_section1",
+      title: " 1. ความปลอดภัยของผู้ใช้บริการ",
+      icon: "🛡️",
+      fields: ["opd_1_1", "opd_1_2", "opd_1_3", "opd_1_4", "opd_1_5", "opd_1_6"]
+    },
+    {
+      key: "opd_section2",
+      title: " 2. อุบัติการณ์การตายอย่างไม่คาดคิด",
+      icon: "💀",
+      fields: ["opd_2"]
+    },
+    {
+      key: "opd_section3",
+      title: " 3. อุบัติเหตุจากการปฏิบัติงานของบุคลากร",
+      icon: "⚠️",
+      fields: ["opd_3"]
+    },
+    {
+      key: "opd_section4",
+      title: " 4. ยา/เวชภัณฑ์หมดอายุ",
+      icon: "💊",
+      fields: ["opd_4"]
+    },
+    {
+      key: "opd_section5",
+      title: " 5. Unexpected Death & Unplan ICU",
+      icon: "🏥",
+      fields: ["opd_5_1", "opd_5_2"]
+    },
+    {
+      key: "opd_section6",
+      title: " CPR",
+      icon: "❤️",
+      fields: ["opd_cpr_1", "opd_cpr_2", "opd_cpr_3", "opd_cpr_rate"]
+    },
+    {
+      key: "opd_section7",
+      title: " Pain Management",
+      icon: "💉",
+      fields: [
+        "opd_pain_1", "opd_pain_1_1", "opd_pain_1_2",
+        "opd_pain_2_1", "opd_pain_2_2", "opd_pain_2_3",
+        "opd_pain_3_1", "opd_pain_3_2", "opd_pain_3_result"
+      ]
+    }
+  ];
+}
+
+// Helper function to get gradient class for each section
+function getSectionGradientClass(sectionKey: string): string {
+  const gradientMap: Record<string, string> = {
+    "s1": "section-gradient-safety",
+    "s1_6": "section-gradient-ulcer",
+    "s1_other": "section-gradient-other",
+    "s2": "section-gradient-readmission",
+    "s3": "section-gradient-los",
+    "s4": "section-gradient-productivity",
+    "s7": "section-gradient-cpr",
+    "s8": "section-gradient-sos",
+    "s9": "section-gradient-icu",
+    "s10": "section-gradient-icu",
+    "s11": "section-gradient-pain"
+  };
+
+  return gradientMap[sectionKey] || "section-gradient-other";
+}
+
+
 /* ----------------------------- ฟังก์ชันคำนวณ ----------------------------- */
 
 function getDaysInMonthThai(month: string, fiscalYearStr: string): number {
@@ -435,13 +1045,138 @@ function computeFields(fields: QAFields, fiscalYear: string, month: string): QAF
   const r2 = toNum(next.s11_3_2);
   next.s11_3_rate = r2 > 0 ? ((r1 / r2) * 100).toFixed(2) + "%" : "0.00%";
 
+  // ========== OR (ห้องผ่าตัด) Computed Fields ==========
+  // OR Satisfaction rate: (2.1 / 2.2) * 100
+  const or_2_1 = toNum(next.or_2_1);
+  const or_2_2 = toNum(next.or_2_2);
+  next.or_2_3 = or_2_2 > 0 ? ((or_2_1 / or_2_2) * 100).toFixed(2) + "%" : "0.00%";
+
+  // OR Elective case prep rate: (1.1 / 1.2) * 100
+  const or_h2_1_1 = toNum(next.or_h2_1_1);
+  const or_h2_1_2 = toNum(next.or_h2_1_2);
+  next.or_h2_1_3 = or_h2_1_2 > 0 ? ((or_h2_1_1 / or_h2_1_2) * 100).toFixed(2) + "%" : "0.00%";
+
+  // OR Post-op assessment rate: (3.1 / 3.2) * 100
+  const or_h2_3_1 = toNum(next.or_h2_3_1);
+  const or_h2_3_2 = toNum(next.or_h2_3_2);
+  next.or_h2_3_3 = or_h2_3_2 > 0 ? ((or_h2_3_1 / or_h2_3_2) * 100).toFixed(2) + "%" : "0.00%";
+
+  // ========== ER (ห้องอุบัติเหตุ ฉุกเฉิน) Computed Fields ==========
+  // ER Satisfaction rate: (2.1 / 2.2) * 100
+  const er_2_1 = toNum(next.er_2_1);
+  const er_2_2 = toNum(next.er_2_2);
+  next.er_2_3 = er_2_2 > 0 ? ((er_2_1 / er_2_2) * 100).toFixed(2) + "%" : "0.00%";
+
+  // ER Pain management documentation: (pm_3_1 / pm_3_2) * 100
+  const er_pm_3_1 = toNum(next.er_pm_3_1);
+  const er_pm_3_2 = toNum(next.er_pm_3_2);
+  next.er_pm_3_3 = er_pm_3_2 > 0 ? ((er_pm_3_1 / er_pm_3_2) * 100).toFixed(2) + "%" : "0.00%";
+
+  // ER Triage correct: (h3_1_1 / h3_1_2) * 100
+  const er_h3_1_1 = toNum(next.er_h3_1_1);
+  const er_h3_1_2 = toNum(next.er_h3_1_2);
+  next.er_h3_1_3 = er_h3_1_2 > 0 ? ((er_h3_1_1 / er_h3_1_2) * 100).toFixed(2) + "%" : "0.00%";
+
+  // ER Critical care <4min: (h3_2_1_1 / h3_2_1_2) * 100
+  const er_h3_2_1_1 = toNum(next.er_h3_2_1_1);
+  const er_h3_2_1_2 = toNum(next.er_h3_2_1_2);
+  next.er_h3_2_1_3 = er_h3_2_1_2 > 0 ? ((er_h3_2_1_1 / er_h3_2_1_2) * 100).toFixed(2) + "%" : "0.00%";
+
+  // ER Patient transfer: (h3_3_1 / h3_3_2) * 100
+  const er_h3_3_1 = toNum(next.er_h3_3_1);
+  const er_h3_3_2 = toNum(next.er_h3_3_2);
+  next.er_h3_3_3 = er_h3_3_2 > 0 ? ((er_h3_3_1 / er_h3_3_2) * 100).toFixed(2) + "%" : "0.00%";
+
+  // ========== Anesth (วิสัญญีพยาบาล) Computed Fields ==========
+  // Anesth Satisfaction rate: (2.1 / 2.2) * 100
+  const an_2_1 = toNum(next.an_2_1);
+  const an_2_2 = toNum(next.an_2_2);
+  next.an_2_3 = an_2_2 > 0 ? ((an_2_1 / an_2_2) * 100).toFixed(2) + "%" : "0.00%";
+
+  // Anesth Pain management documentation rate: (3_1 / 3_2) * 100
+  const an_h2_3_1 = toNum(next.an_h2_3_1);
+  const an_h2_3_2 = toNum(next.an_h2_3_2);
+  next.an_h2_3_3 = an_h2_3_2 > 0 ? ((an_h2_3_1 / an_h2_3_2) * 100).toFixed(2) + "%" : "0.00%";
+
+  // Anesth Pre-op preparation: (h3_1_1 / h3_1_2) * 100
+  const an_h3_1_1 = toNum(next.an_h3_1_1);
+  const an_h3_1_2 = toNum(next.an_h3_1_2);
+  next.an_h3_1_3 = an_h3_1_2 > 0 ? ((an_h3_1_1 / an_h3_1_2) * 100).toFixed(2) + "%" : "0.00%";
+
+  // Anesth Post-op monitoring: (h3_3_1 / h3_3_2) * 100
+  const an_h3_3_1 = toNum(next.an_h3_3_1);
+  const an_h3_3_2 = toNum(next.an_h3_3_2);
+  next.an_h3_3_3 = an_h3_3_2 > 0 ? ((an_h3_3_1 / an_h3_3_2) * 100).toFixed(2) + "%" : "0.00%";
+
+  // Anesth Recovery room discharge: (h3_4_1 / h3_4_2) * 100
+  const an_h3_4_1 = toNum(next.an_h3_4_1);
+  const an_h3_4_2 = toNum(next.an_h3_4_2);
+  next.an_h3_4_3 = an_h3_4_2 > 0 ? ((an_h3_4_1 / an_h3_4_2) * 100).toFixed(2) + "%" : "0.00%";
+
+  // Anesth Anesthesia explanation: (h3_5_1 / h3_5_2) * 100
+  const an_h3_5_1 = toNum(next.an_h3_5_1);
+  const an_h3_5_2 = toNum(next.an_h3_5_2);
+  next.an_h3_5_3 = an_h3_5_2 > 0 ? ((an_h3_5_1 / an_h3_5_2) * 100).toFixed(2) + "%" : "0.00%";
+
+  // ========== LR (ห้องคลอด) Computed Fields ==========
+  // LR Pressure ulcer rate: (1_6_1 / 1_6_4) * 100
+  const lr_1_6_1 = toNum(next.lr_1_6_1);
+  const lr_1_6_4 = toNum(next.lr_1_6_4);
+  next.lr_1_6_5 = lr_1_6_4 > 0 ? ((lr_1_6_1 / lr_1_6_4) * 100).toFixed(2) + "%" : "0.00%";
+
+  // LR Production calculations
+  const lr_2_1 = toNum(next.lr_2_1); // RN hr
+  const lr_2_2 = toNum(next.lr_2_2); // Auxiliary hr
+  const lr_2_4 = toNum(next.lr_2_4); // A = staff/day
+  const lr_2_5 = toNum(next.lr_2_5); // B = ผลรวมผู้ป่วย/day
+
+  // 3. RN hr / Auxiliary hr
+  next.lr_2_3 = lr_2_2 > 0 ? (lr_2_1 / lr_2_2).toFixed(2) : "0.00";
+
+  // 6. HPPD = A x 7 / B
+  next.lr_2_6 = lr_2_5 > 0 ? ((lr_2_4 * 7) / lr_2_5).toFixed(2) : "0.00";
+
+  // Productivity (LR) - complex formula (placeholder - needs จำนวนการคลอด และ ไม่คลอด fields)
+  // Formula: (จำนวนการคลอด x 6)+ (ไม่คลอด x 5.5) x100 / RN ไม่รวม IIN x 7
+  // For now, just show 0% until we have the delivery count fields
+  next.lr_2_productivity = "0.00%";
+
+  // LR Pain management documentation: (pm_3_1 x 100 / pm_3_2)
+  // Note: pm_3_1 already includes x100 in the field definition
+  const lr_pm_3_1 = toNum(next.lr_pm_3_1);
+  const lr_pm_3_2 = toNum(next.lr_pm_3_2);
+  next.lr_pm_3_3 = lr_pm_3_2 > 0 ? (lr_pm_3_1 / lr_pm_3_2).toFixed(2) + "%" : "0.00%";
+
+  // LR หัวตี้ 2 calculations
+  // 1.6.3 ร้อยละการตกเลือดหลังคลอด = (1_6_1 / 1_6_2) x 100
+  const lr_h2_1_6_1 = toNum(next.lr_h2_1_6_1);
+  const lr_h2_1_6_2 = toNum(next.lr_h2_1_6_2);
+  next.lr_h2_1_6_3 = lr_h2_1_6_2 > 0 ? ((lr_h2_1_6_1 / lr_h2_1_6_2) * 100).toFixed(2) + "%" : "0.00%";
+
+  // 3.3 Birth Asphyxia rate = (3_1 x 1000 / 3_2)
+  const lr_h2_3_1 = toNum(next.lr_h2_3_1);
+  const lr_h2_3_2 = toNum(next.lr_h2_3_2);
+  next.lr_h2_3_3 = lr_h2_3_2 > 0 ? ((lr_h2_3_1 * 1000) / lr_h2_3_2).toFixed(2) : "0.00";
+
+  // ========== OPD (ผู้ป่วยนอก) Computed Fields ==========
+  // OPD CPR Success Rate: (opd_cpr_3 / opd_cpr_2) * 100
+  const opd_cpr_2 = toNum(next.opd_cpr_2); // Total CPR attempts
+  const opd_cpr_3 = toNum(next.opd_cpr_3); // Successful CPR
+  next.opd_cpr_rate = opd_cpr_2 > 0 ? ((opd_cpr_3 / opd_cpr_2) * 100).toFixed(2) + "%" : "0.00%";
+
+  // OPD Pain Management Documentation Completeness: (opd_pain_3_1 / opd_pain_3_2)
+  // Note: opd_pain_3_1 already includes ×100 in the calculation per specification
+  const opd_pain_3_1 = toNum(next.opd_pain_3_1);
+  const opd_pain_3_2 = toNum(next.opd_pain_3_2);
+  next.opd_pain_3_result = opd_pain_3_2 > 0 ? (opd_pain_3_1 / opd_pain_3_2).toFixed(2) + "%" : "0.00%";
+
   return next;
 }
 
 /* ----------------------------- Dashboard Functions ----------------------------- */
 
 function generateDashboardData(records: QARecordView[], selectedMonth?: string): DashboardData {
-  const filteredRecords = selectedMonth && selectedMonth !== "ทั้งปี" 
+  const filteredRecords = selectedMonth && selectedMonth !== "ทั้งปี"
     ? records.filter(r => r.month === selectedMonth)
     : records;
 
@@ -460,9 +1195,9 @@ function generateDashboardData(records: QARecordView[], selectedMonth?: string):
     const avgLOS = monthRecords.length > 0
       ? monthRecords.reduce((sum, r) => sum + parseFloat(r.data.averageLOS || "0"), 0) / monthRecords.length
       : 0;
-    
+
     const totalIncidents = monthRecords.reduce((sum, r) => {
-      return sum + 
+      return sum +
         (parseInt(r.data.s1_1 || "0")) +
         (parseInt(r.data.s1_2 || "0")) +
         (parseInt(r.data.s1_3 || "0")) +
@@ -509,13 +1244,13 @@ function generateDashboardData(records: QARecordView[], selectedMonth?: string):
 
   // Pain management data
   const painManagementData = [
-    { 
-      name: "ใช้ยา", 
+    {
+      name: "ใช้ยา",
       value: filteredRecords.reduce((sum, r) => sum + parseInt(r.data.s11_1_1 || "0"), 0),
       color: "#10b981"
     },
-    { 
-      name: "ไม่ใช้ยา", 
+    {
+      name: "ไม่ใช้ยา",
       value: filteredRecords.reduce((sum, r) => sum + parseInt(r.data.s11_1_2 || "0"), 0),
       color: "#3b82f6"
     }
@@ -523,7 +1258,7 @@ function generateDashboardData(records: QARecordView[], selectedMonth?: string):
 
   // Department performance (for admin)
   const departmentMap = new Map<string, { productivity: number[], incidents: number, completeness: number }>();
-  
+
   records.forEach(r => {
     if (!departmentMap.has(r.departmentName)) {
       departmentMap.set(r.departmentName, { productivity: [], incidents: 0, completeness: 0 });
@@ -551,12 +1286,12 @@ function generateDashboardData(records: QARecordView[], selectedMonth?: string):
 }
 
 // Dashboard Component
-function DashboardAnalytics({ 
-  data, 
+function DashboardAnalytics({
+  data,
   isAdmin = false,
   selectedMonth = "ทั้งปี"
-}: { 
-  data: DashboardData; 
+}: {
+  data: DashboardData;
   isAdmin?: boolean;
   selectedMonth?: string;
 }) {
@@ -639,15 +1374,15 @@ function DashboardAnalytics({
               <CartesianGrid strokeDasharray="3 3" stroke="#f1f5f9" />
               <XAxis dataKey="month" tick={{ fontSize: 11 }} />
               <YAxis tick={{ fontSize: 11 }} />
-              <Tooltip 
+              <Tooltip
                 contentStyle={{ fontSize: 12, borderRadius: 8 }}
                 formatter={(value: any) => `${value}%`}
               />
-              <Area 
-                type="monotone" 
-                dataKey="productivity" 
-                stroke="#3b82f6" 
-                fill="#93bbfc" 
+              <Area
+                type="monotone"
+                dataKey="productivity"
+                stroke="#3b82f6"
+                fill="#93bbfc"
                 strokeWidth={2}
               />
               <Line type="monotone" dataKey="productivity" stroke="#3b82f6" strokeWidth={2} />
@@ -683,24 +1418,24 @@ function DashboardAnalytics({
               <YAxis tick={{ fontSize: 11 }} />
               <Tooltip contentStyle={{ fontSize: 12, borderRadius: 8 }} />
               <Legend wrapperStyle={{ fontSize: 11 }} />
-              <Line 
-                type="monotone" 
-                dataKey="pressureUlcerRate" 
-                stroke="#10b981" 
+              <Line
+                type="monotone"
+                dataKey="pressureUlcerRate"
+                stroke="#10b981"
                 strokeWidth={2}
                 name="อัตราแผลกดทับ"
               />
-              <Line 
-                type="monotone" 
-                dataKey="readmissionRate" 
-                stroke="#f59e0b" 
+              <Line
+                type="monotone"
+                dataKey="readmissionRate"
+                stroke="#f59e0b"
                 strokeWidth={2}
                 name="Re-admission (%)"
               />
-              <Line 
-                type="monotone" 
-                dataKey="avgLOS" 
-                stroke="#8b5cf6" 
+              <Line
+                type="monotone"
+                dataKey="avgLOS"
+                stroke="#8b5cf6"
                 strokeWidth={2}
                 name="LOS เฉลี่ย"
               />
@@ -756,18 +1491,18 @@ function DashboardAnalytics({
         <h3 className="text-sm font-semibold text-slate-800 mb-4">อุบัติการณ์รายเดือน (Heatmap)</h3>
         <div className="grid grid-cols-12 gap-1">
           {data.monthlyTrends.map((month, idx) => {
-            const bgColor = month.incidents === 0 
-              ? "bg-slate-100" 
-              : month.incidents < 5 
-              ? "bg-green-200" 
-              : month.incidents < 10 
-              ? "bg-amber-200" 
-              : "bg-red-200";
-            
+            const bgColor = month.incidents === 0
+              ? "bg-slate-100"
+              : month.incidents < 5
+                ? "bg-green-200"
+                : month.incidents < 10
+                  ? "bg-amber-200"
+                  : "bg-red-200";
+
             return (
               <div key={idx} className="text-center">
                 <div className="text-[10px] text-slate-600 mb-1">{month.month}</div>
-                <div 
+                <div
                   className={`w-full h-10 rounded ${bgColor} flex items-center justify-center text-xs font-semibold`}
                   title={`${month.incidents} อุบัติการณ์`}
                 >
@@ -792,15 +1527,17 @@ function AdminEditModal({
   isOpen,
   onClose,
   record,
-  onSave
+  onSave,
+  onDelete
 }: {
   isOpen: boolean;
   onClose: () => void;
   record: QARecordView | null;
   onSave: (updatedRecord: QARecordView) => void;
+  onDelete?: (record: QARecordView) => void;
 }) {
   const [editedFields, setEditedFields] = useState<QAFields>({});
-  
+
   useEffect(() => {
     if (record) {
       setEditedFields(record.data);
@@ -812,7 +1549,7 @@ function AdminEditModal({
   const handleSave = async () => {
     const computed = computeFields(editedFields, record.fiscalYear, record.month);
     const updatedRecord = { ...record, data: computed };
-    
+
     // Call API to save
     try {
       const res = await fetch("/api/qa/save", {
@@ -826,7 +1563,7 @@ function AdminEditModal({
           fields: computed
         })
       });
-      
+
       const json = await res.json();
       if (json.success) {
         onSave(updatedRecord);
@@ -846,6 +1583,25 @@ function AdminEditModal({
     }
   };
 
+  const handleDelete = () => {
+    if (!onDelete) return;
+
+    Swal.fire({
+      title: 'ยืนยันการลบข้อมูล?',
+      text: `ต้องการลบข้อมูลของ ${record.departmentName} เดือน${record.month} ใช่หรือไม่?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonColor: '#d33',
+      cancelButtonColor: '#3085d6',
+      confirmButtonText: 'ใช่, ลบเลย',
+      cancelButtonText: 'ยกเลิก'
+    }).then((result) => {
+      if (result.isConfirmed) {
+        onDelete(record);
+      }
+    });
+  };
+
   const dept = DEPARTMENTS.find(d => d.id === record.departmentId);
   const sectionConfig = getSectionConfig(dept || null);
 
@@ -859,14 +1615,24 @@ function AdminEditModal({
               {record.departmentName} - {record.month} {record.fiscalYear}
             </p>
           </div>
-          <button
-            onClick={onClose}
-            className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center"
-          >
-            ✕
-          </button>
+          <div className="flex items-center gap-2">
+            {onDelete && (
+              <button
+                onClick={handleDelete}
+                className="px-3 py-1.5 bg-rose-100 text-rose-700 rounded-lg text-sm font-semibold hover:bg-rose-200 transition flex items-center gap-1"
+              >
+                <span>🗑️</span> ลบข้อมูล
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="w-8 h-8 rounded-full hover:bg-slate-100 flex items-center justify-center"
+            >
+              ✕
+            </button>
+          </div>
         </div>
-        
+
         <div className="p-6 overflow-y-auto max-h-[calc(90vh-140px)]">
           <div className="space-y-6">
             {sectionConfig.map(section => (
@@ -880,7 +1646,7 @@ function AdminEditModal({
                     const label = FIELD_LABELS[fieldId] || fieldId;
                     const isComputed = COMPUTED_FIELDS.has(fieldId);
                     const value = editedFields[fieldId] ?? "";
-                    
+
                     return (
                       <div key={fieldId} className="flex flex-col gap-1">
                         <label className="text-xs font-medium text-slate-700">
@@ -891,14 +1657,13 @@ function AdminEditModal({
                           type="text"
                           value={value}
                           readOnly={isComputed}
-                          onChange={e => !isComputed && setEditedFields(prev => 
+                          onChange={e => !isComputed && setEditedFields(prev =>
                             computeFields({ ...prev, [fieldId]: e.target.value }, record.fiscalYear, record.month)
                           )}
-                          className={`w-full rounded-lg border px-3 py-2 text-sm ${
-                            isComputed
-                              ? "bg-blue-50 border-blue-200 text-blue-900"
-                              : "border-slate-200 bg-white"
-                          }`}
+                          className={`w-full rounded-lg border px-3 py-2 text-sm ${isComputed
+                            ? "bg-blue-50 border-blue-200 text-blue-900"
+                            : "border-slate-200 bg-white"
+                            }`}
                         />
                       </div>
                     );
@@ -908,7 +1673,7 @@ function AdminEditModal({
             ))}
           </div>
         </div>
-        
+
         <div className="px-6 py-4 border-t border-slate-200 flex justify-end gap-3">
           <button
             onClick={onClose}
@@ -934,7 +1699,13 @@ export default function HomePage() {
   const [role, setRole] = useState<Role>("user");
   const [selectedDeptId, setSelectedDeptId] = useState("");
   const [password, setPassword] = useState("");
+  const [showPassword, setShowPassword] = useState(false);
   const [currentDept, setCurrentDept] = useState<Department | null>(null);
+
+  // Login transition animation states
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
+  const [isTransitioning, setIsTransitioning] = useState(false);
+  const [showMainPage, setShowMainPage] = useState(false);
 
   const [fiscalYear, setFiscalYear] = useState("2568");
   const [month, setMonth] = useState<string>("ตุลาคม");
@@ -942,6 +1713,11 @@ export default function HomePage() {
   const [fields, setFields] = useState<QAFields>({});
   const [loading, setLoading] = useState(false);
   const [alert, setAlert] = useState<{ type: "success" | "error" | "warning"; message: string } | null>(null);
+
+  // Special Unit Tab System
+  const [specialUnitActiveTab, setSpecialUnitActiveTab] = useState<'form' | 'table'>('form');
+  const [specialUnitSavedData, setSpecialUnitSavedData] = useState<any[]>([]);
+  const [editingEntryId, setEditingEntryId] = useState<string | null>(null);
 
   const [yearData, setYearData] = useState<{
     [month: string]: { id: string; updatedAt: string } | undefined;
@@ -962,17 +1738,126 @@ export default function HomePage() {
   // Dashboard state
   const [dashboardMonth, setDashboardMonth] = useState<string>("ทั้งปี");
 
-  const isLoggedIn = (role === "user" && !!currentDept) || (role === "admin" && currentDept?.id === "ADMIN");
+  // OPD Report Independent State (auto-fetch from database)
+  const [opdReportRecords, setOpdReportRecords] = useState<QARecordView[]>([]);
+  const [opdReportYear, setOpdReportYear] = useState<string>("2568");
+  const [opdReportLoading, setOpdReportLoading] = useState(false);
+
+  // Admin Panel Navigation State
+  const [adminView, setAdminView] = useState<AdminView>("dashboard");
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
+
+  // ------------------------- Session Restore on Mount -------------------------
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+
+    try {
+      const savedSession = sessionStorage.getItem('qa_session');
+      if (savedSession) {
+        const session = JSON.parse(savedSession);
+        const { role: savedRole, departmentId, timestamp } = session;
+
+        // Check if session is still valid (within 8 hours)
+        const MAX_SESSION_AGE = 8 * 60 * 60 * 1000; // 8 hours
+        if (Date.now() - timestamp > MAX_SESSION_AGE) {
+          sessionStorage.removeItem('qa_session');
+          return;
+        }
+
+        // Find the department
+        const dept = DEPARTMENTS.find(d => d.id === departmentId);
+        if (dept) {
+          setRole(savedRole as Role);
+          setSelectedDeptId(departmentId);
+          setCurrentDept(dept);
+          setShowMainPage(true);
+        }
+      }
+    } catch (error) {
+      console.error('Error restoring session:', error);
+      sessionStorage.removeItem('qa_session');
+    }
+  }, []);
+
+  const isLoggedIn =
+    (role === "user" && !!currentDept) ||
+    (role === "special_unit" && !!currentDept) ||
+    (role === "opd" && !!currentDept) ||
+    (role === "admin" && currentDept?.id === "ADMIN");
+
+  // ------------------------- Logout Logic -------------------------
+  const handleLogout = useCallback(() => {
+    setCurrentDept(null);
+    setSelectedDeptId("");
+    setPassword(""); // Clear password
+    setRole("user"); // Reset role to default
+    setFields({});
+    setYearData({});
+    setYearRecords([]);
+    setAllDepartmentsData([]);
+    setActiveTab("form");
+    setEditingEntryId(null);
+    setEditingRecord(null);
+
+    // Reset transition states
+    setIsTransitioning(false);
+    setShowMainPage(false);
+
+    // Clear session storage on logout
+    if (typeof window !== 'undefined') {
+      sessionStorage.removeItem('qa_session');
+    }
+  }, []);
+
+  // ------------------------- Auto-Logout System -------------------------
+  useEffect(() => {
+    if (!isLoggedIn) return;
+
+    const TIMEOUT_MS = 60 * 60 * 1000; // 1 Hour
+    let timeoutId: NodeJS.Timeout;
+
+    const activeEvents = ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'];
+
+    const resetTimer = () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      timeoutId = setTimeout(() => {
+        handleLogout();
+        Swal.fire({
+          icon: 'warning',
+          title: 'หมดเวลาการใช้งาน',
+          text: 'ระบบได้ทำการออกจากระบบอัตโนมัติเนื่องจากไม่มีการใช้งานเกิน 1 ชั่วโมง',
+          confirmButtonText: 'ตกลง',
+          confirmButtonColor: '#4f46e5'
+        });
+      }, TIMEOUT_MS);
+    };
+
+    // Initialize
+    resetTimer();
+
+    // Attach listeners
+    activeEvents.forEach(event => window.addEventListener(event, resetTimer));
+
+    return () => {
+      if (timeoutId) clearTimeout(timeoutId);
+      activeEvents.forEach(event => window.removeEventListener(event, resetTimer));
+    };
+  }, [isLoggedIn, handleLogout]);
 
   const selectedDept = useMemo(
     () => DEPARTMENTS.find(d => d.id === selectedDeptId) || null,
     [selectedDeptId]
   );
 
-  const sectionConfig = useMemo(
-    () => getSectionConfig(currentDept),
-    [currentDept]
-  );
+  const sectionConfig = useMemo(() => {
+    if (role === "special_unit" && currentDept) {
+      return getSpecialUnitSectionConfig(currentDept);
+    } else if (role === "opd") {
+      return getOPDSectionConfig();
+    } else {
+      return getSectionConfig(currentDept);
+    }
+  }, [currentDept, role]);
 
   const analytics = useMemo(() => {
     if (!yearRecords.length) {
@@ -982,8 +1867,18 @@ export default function HomePage() {
         averageLOS: "0.00",
         totalCPRSuccess: 0,
         pressureUlcerRateAvg: "0.00",
+        // For special units - will be populated below
+        metric1: { label: "", value: "0.00", suffix: "" },
+        metric2: { label: "", value: "0.00", suffix: "" },
+        metric3: { label: "", value: "0", suffix: "" },
+        metric4: { label: "", value: "0.00", suffix: "" },
       };
     }
+
+    // Filter records by selected month for IPD/OPD/Special Unit reports
+    const filteredRecords = month === "ทั้งปี"
+      ? yearRecords
+      : yearRecords.filter(r => r.month === month);
 
     const parsePercent = (value?: string) => {
       if (!value) return 0;
@@ -991,28 +1886,132 @@ export default function HomePage() {
     };
 
     const avg = (values: number[]) => (values.length ? (values.reduce((a, b) => a + b, 0) / values.length).toFixed(2) : "0.00");
+    const sum = (values: number[]) => values.reduce((a, b) => a + b, 0);
 
-    const productivityVals = yearRecords.map(r => parsePercent(r.data.productivityValue));
-    const losVals = yearRecords.map(r => parseFloat(r.data.averageLOS || "0"));
-    const ulcerVals = yearRecords.map(r => parseFloat(r.data.pressureUlcerRate || "0"));
-    const totalCPR = yearRecords.reduce((sum, r) => sum + (parseFloat(r.data.s7_3 || "0") || 0), 0);
+    // Check if this is a special unit
+    const unitType = selectedDeptId?.startsWith("dept_or") ? "OR"
+      : selectedDeptId?.startsWith("dept_er") ? "ER"
+        : selectedDeptId?.startsWith("dept_anesth") ? "Anesth"
+          : selectedDeptId?.startsWith("dept_lr") ? "LR"
+            : null;
+
+    if (role === "special_unit" && unitType) {
+      // Special unit specific analytics
+      const unitMetrics: Record<string, { m1: { label: string; field: string; suffix: string }; m2: { label: string; field: string; suffix: string }; m3: { label: string; field: string; suffix: string }; m4: { label: string; field: string; suffix: string } }> = {
+        "OR": {
+          m1: { label: "ความพึงพอใจ", field: "or_2_3", suffix: "%" },
+          m2: { label: "Pre-op Eval", field: "or_h2_1_3", suffix: "%" },
+          m3: { label: "CPR สำเร็จ", field: "or_5_3", suffix: "ครั้ง" },
+          m4: { label: "Safety Index", field: "or_h2_2_5", suffix: "" },
+        },
+        "ER": {
+          m1: { label: "Re-visit <48h", field: "er_1_1", suffix: "%" },
+          m2: { label: "Waiting Time", field: "er_2_1", suffix: "นาที" },
+          m3: { label: "CPR สำเร็จ", field: "er_5_3", suffix: "ครั้ง" },
+          m4: { label: "Triage", field: "er_3_1", suffix: "%" },
+        },
+        "Anesth": {
+          m1: { label: "Complications", field: "an_1_1", suffix: "%" },
+          m2: { label: "ความพึงพอใจ", field: "an_2_3", suffix: "%" },
+          m3: { label: "CPR สำเร็จ", field: "an_5_3", suffix: "ครั้ง" },
+          m4: { label: "Pre-op Prep", field: "an_h3_1_3", suffix: "%" },
+        },
+        "LR": {
+          m1: { label: "แผลกดทับ Rate", field: "lr_1_6_5", suffix: "" },
+          m2: { label: "Productivity", field: "lr_2_productivity", suffix: "%" },
+          m3: { label: "CPR สำเร็จ", field: "lr_5_3", suffix: "ครั้ง" },
+          m4: { label: "HPPD", field: "lr_2_6", suffix: "" },
+        },
+      };
+
+      const config = unitMetrics[unitType];
+      const getMetricValue = (field: string, isCPR: boolean) => {
+        const values = filteredRecords.map(r => parseFloat(r.data[field]?.replace('%', '') || "0"));
+        return isCPR ? sum(values).toFixed(0) : avg(values);
+      };
+
+      return {
+        monthsFilled: filteredRecords.length,
+        averageProductivity: "0.00%",
+        averageLOS: "0.00",
+        totalCPRSuccess: 0,
+        pressureUlcerRateAvg: "0.00",
+        metric1: { label: config.m1.label, value: getMetricValue(config.m1.field, false), suffix: config.m1.suffix },
+        metric2: { label: config.m2.label, value: getMetricValue(config.m2.field, false), suffix: config.m2.suffix },
+        metric3: { label: config.m3.label, value: getMetricValue(config.m3.field, true), suffix: config.m3.suffix },
+        metric4: { label: config.m4.label, value: getMetricValue(config.m4.field, false), suffix: config.m4.suffix },
+      };
+    }
+
+    // OPD-specific analytics
+    if (role === "opd") {
+      const opdWrongPatientId = filteredRecords.reduce((sum, r) => sum + parseFloat(r.data.opd_1_1 || "0"), 0);
+      const opdWrongTreatment = filteredRecords.reduce((sum, r) => sum + parseFloat(r.data.opd_1_2 || "0"), 0);
+      const opdUnexpectedDeath = filteredRecords.reduce((sum, r) => sum + parseFloat(r.data.opd_2 || "0"), 0);
+      const opdStaffAccidents = filteredRecords.reduce((sum, r) => sum + parseFloat(r.data.opd_3 || "0"), 0);
+
+      const totalCPR = filteredRecords.reduce((sum, r) => sum + parseFloat(r.data.opd_cpr_2 || "0"), 0);
+      const successCPR = filteredRecords.reduce((sum, r) => sum + parseFloat(r.data.opd_cpr_3 || "0"), 0);
+      const opdCPRRate = totalCPR > 0 ? ((successCPR / totalCPR) * 100).toFixed(2) : "0.00";
+
+      return {
+        monthsFilled: filteredRecords.length,
+        averageProductivity: "0.00%",
+        averageLOS: "0.00",
+        totalCPRSuccess: 0,
+        pressureUlcerRateAvg: "0.00",
+        metric1: { label: "", value: "0.00", suffix: "" },
+        metric2: { label: "", value: "0.00", suffix: "" },
+        metric3: { label: "", value: "0", suffix: "" },
+        metric4: { label: "", value: "0.00", suffix: "" },
+        // OPD-specific
+        opdWrongPatientId,
+        opdWrongTreatment,
+        opdUnexpectedDeath,
+        opdStaffAccidents,
+        opdCPRRate,
+      };
+    }
+
+    // Regular department analytics (IPD)
+    const productivityVals = filteredRecords.map(r => parsePercent(r.data.productivityValue));
+    const losVals = filteredRecords.map(r => parseFloat(r.data.averageLOS || "0"));
+    const ulcerVals = filteredRecords.map(r => parseFloat(r.data.pressureUlcerRate || "0"));
+    const totalCPR = filteredRecords.reduce((sum, r) => sum + (parseFloat(r.data.s7_3 || "0") || 0), 0);
+
+    // IPD-specific incident counts
+    const ipdWrongPatientId = filteredRecords.reduce((sum, r) => sum + parseFloat(r.data.s1_1 || "0"), 0);
+    const ipdWrongTreatment = filteredRecords.reduce((sum, r) => sum + parseFloat(r.data.s1_2 || "0"), 0);
+    const ipdUnexpectedDeath = filteredRecords.reduce((sum, r) => sum + parseFloat(r.data.s1_5 || "0"), 0);
+
+    // IPD Readmission Rate average
+    const readmissionVals = filteredRecords.map(r => parsePercent(r.data.readmissionRate));
+    const ipdReadmissionRate = readmissionVals.length > 0 ? avg(readmissionVals) : "0.00";
 
     return {
-      monthsFilled: yearRecords.length,
+      monthsFilled: filteredRecords.length,
       averageProductivity: `${avg(productivityVals)}%`,
       averageLOS: avg(losVals),
       totalCPRSuccess: totalCPR,
       pressureUlcerRateAvg: avg(ulcerVals),
+      metric1: { label: "", value: "0.00", suffix: "" },
+      metric2: { label: "", value: "0.00", suffix: "" },
+      metric3: { label: "", value: "0", suffix: "" },
+      metric4: { label: "", value: "0.00", suffix: "" },
+      // IPD-specific
+      ipdWrongPatientId,
+      ipdWrongTreatment,
+      ipdUnexpectedDeath,
+      ipdReadmissionRate,
     };
-  }, [yearRecords]);
+  }, [yearRecords, role, selectedDeptId, month]);
 
   const missingMonths = useMemo(() => MONTHS_TH.filter(m => !yearData[m]), [yearData]);
 
   useEffect(() => {
-    if (isLoggedIn && role === "user") {
-      handleLoadPeriod();
-      handleLoadYear();
-    } else if (isLoggedIn && role === "admin") {
+    // Only Admin loads data automatically
+    // Other roles (user, opd, special_unit) must click load button manually
+    if (isLoggedIn && role === "admin") {
       loadAllDepartmentsData();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -1021,6 +2020,140 @@ export default function HomePage() {
   useEffect(() => {
     setFields(prev => computeFields(prev, fiscalYear, month));
   }, [fiscalYear, month]);
+
+  // Auto-load OPD Report data when entering report tab or changing year
+  const loadOpdReportData = useCallback(async (yearToLoad?: string) => {
+    if (role !== "opd" || !selectedDeptId) return;
+
+    setOpdReportLoading(true);
+    try {
+      const params = new URLSearchParams({
+        departmentId: selectedDeptId,
+        fiscalYear: yearToLoad || opdReportYear
+      }).toString();
+
+      const res = await fetch(`/api/qa/by-year?${params}`);
+      const json = await res.json();
+
+      if (json.success) {
+        const records = (json.records as QARecordView[] | undefined) ?? [];
+        setOpdReportRecords(records.map(rec => ({ ...rec, data: computeFields(rec.data, rec.fiscalYear, rec.month) })));
+      }
+    } catch (err) {
+      console.error("Error loading OPD report data:", err);
+    } finally {
+      setOpdReportLoading(false);
+    }
+  }, [role, selectedDeptId, opdReportYear]);
+
+  // Auto-load OPD report when switching to table tab (report tab) for OPD role
+  useEffect(() => {
+    if (role === "opd" && activeTab === "table" && selectedDeptId) {
+      // Auto load data when entering report tab for OPD - pass fiscal year to ensure correct data
+      handleLoadYear(fiscalYear);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [role, activeTab, selectedDeptId, fiscalYear]);
+
+  // ========== Special Unit CRUD Functions ==========
+
+  // Load saved data for special unit
+  function loadSpecialUnitData() {
+    if (!selectedDeptId || role !== "special_unit") return;
+
+    try {
+      const storageKey = `qa_special_unit_data_${selectedDeptId}`;
+      const savedDataStr = localStorage.getItem(storageKey);
+
+      if (savedDataStr) {
+        const savedData = JSON.parse(savedDataStr);
+        setSpecialUnitSavedData(savedData);
+      } else {
+        setSpecialUnitSavedData([]);
+      }
+    } catch (error) {
+      console.error("Error loading special unit data:", error);
+      setSpecialUnitSavedData([]);
+    }
+  }
+
+  // Save new entry
+  function saveSpecialUnitEntry(data: Record<string, string>) {
+    if (!selectedDeptId || role !== "special_unit") return;
+
+    try {
+      const storageKey = `qa_special_unit_data_${selectedDeptId}`;
+      const newEntry = {
+        id: Date.now().toString(),
+        department: selectedDeptId,
+        departmentName: DEPARTMENTS.find(d => d.id === selectedDeptId)?.name || "",
+        month: month,
+        year: fiscalYear,
+        fiscalYear: fiscalYear,
+        timestamp: Date.now(),
+        data: data
+      };
+
+      const currentData = specialUnitSavedData || [];
+      const updatedData = [...currentData, newEntry];
+
+      localStorage.setItem(storageKey, JSON.stringify(updatedData));
+      setSpecialUnitSavedData(updatedData);
+
+      return newEntry.id;
+    } catch (error) {
+      console.error("Error saving special unit entry:", error);
+      return null;
+    }
+  }
+
+  // Update existing entry
+  function updateSpecialUnitEntry(entryId: string, data: Record<string, string>) {
+    if (!selectedDeptId || role !== "special_unit") return false;
+
+    try {
+      const storageKey = `qa_special_unit_data_${selectedDeptId}`;
+      const updatedData = specialUnitSavedData.map(entry =>
+        entry.id === entryId
+          ? { ...entry, data, timestamp: Date.now() }
+          : entry
+      );
+
+      localStorage.setItem(storageKey, JSON.stringify(updatedData));
+      setSpecialUnitSavedData(updatedData);
+
+      return true;
+    } catch (error) {
+      console.error("Error updating special unit entry:", error);
+      return false;
+    }
+  }
+
+  // Delete entry
+  function deleteSpecialUnitEntry(entryId: string) {
+    if (!selectedDeptId || role !== "special_unit") return false;
+
+    try {
+      const storageKey = `qa_special_unit_data_${selectedDeptId}`;
+      const updatedData = specialUnitSavedData.filter(entry => entry.id !== entryId);
+
+      localStorage.setItem(storageKey, JSON.stringify(updatedData));
+      setSpecialUnitSavedData(updatedData);
+
+      return true;
+    } catch (error) {
+      console.error("Error deleting special unit entry:", error);
+      return false;
+    }
+  }
+
+  // useEffect to load data when logging in
+  useEffect(() => {
+    if (isLoggedIn && role === "special_unit" && selectedDeptId) {
+      loadSpecialUnitData();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLoggedIn, role, selectedDeptId]);
 
   function showAlert(type: "success" | "error" | "warning", message: string) {
     setAlert({ type, message });
@@ -1057,38 +2190,102 @@ export default function HomePage() {
 
   /* ----------------------------- ฟังก์ชัน Login ---------------------------- */
 
-  function handleLogin(e: React.FormEvent) {
+  async function handleLogin(e: React.FormEvent) {
     e.preventDefault();
+    setIsLoggingIn(true);
 
-    if (role === "user") {
-      if (!selectedDept || !password) {
-        showAlert("error", "กรุณาเลือกแผนกและกรอกรหัสผ่าน");
-        return;
+    // Admin login logic
+    if (role === "admin") {
+      try {
+        const res = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ departmentId: "ADMIN", password })
+        });
+        const json = await res.json();
+
+        if (json.success) {
+          // Trigger page transition animation
+          setIsTransitioning(true);
+          await new Promise(resolve => setTimeout(resolve, 600)); // Wait for exit animation
+          setCurrentDept(DEPARTMENTS.find(d => d.id === "ADMIN") || null);
+          setShowMainPage(true);
+          setPassword(""); // Clear password immediately after success
+          showAlert("success", "เข้าสู่ระบบ Admin สำเร็จ");
+
+          // Save session to sessionStorage
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem('qa_session', JSON.stringify({
+              role: 'admin',
+              departmentId: 'ADMIN',
+              timestamp: Date.now()
+            }));
+          }
+        } else {
+          showAlert("error", json.error || "รหัสผ่าน Admin ไม่ถูกต้อง");
+        }
+      } catch (err) {
+        showAlert("error", "เกิดข้อผิดพลาดในการเข้าสู่ระบบ");
       }
-      if (password !== selectedDept.password) {
-        showAlert("error", "รหัสผ่านไม่ถูกต้อง");
-        return;
-      }
-      setCurrentDept(selectedDept);
-      setPassword("");
-      showAlert("success", `เข้าสู่ระบบแผนก: ${selectedDept.name}`);
-    } else {
-      if (password !== "admin@nbl2568") {
-        showAlert("error", "รหัสผ่าน Admin ไม่ถูกต้อง");
-        return;
-      }
-      setCurrentDept(DEPARTMENTS.find(d => d.id === "ADMIN") || null);
-      showAlert("success", "เข้าสู่ระบบ Admin สำเร็จ");
+      setIsLoggingIn(false);
+      return;
     }
-  }
 
-  function handleLogout() {
-    setCurrentDept(null);
-    setSelectedDeptId("");
-    setFields({});
-    setYearData({});
-    setAllDepartmentsData([]);
-    setActiveTab("form");
+    // Role-based Department selection
+    if (role === "user" || role === "special_unit" || role === "opd") {
+      if (!selectedDeptId || !password) {
+        showAlert("error", "กรุณาเลือกแผนกและกรอกรหัสผ่าน");
+        setIsLoggingIn(false);
+        return;
+      }
+
+      const dept = DEPARTMENTS.find(d => d.id === selectedDeptId);
+      if (!dept) {
+        showAlert("error", "ไม่พบข้อมูลแผนก");
+        setIsLoggingIn(false);
+        return;
+      }
+
+      try {
+        // Authenticate via API
+        const res = await fetch("/api/auth/login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ departmentId: dept.id, password })
+        });
+        const json = await res.json();
+
+        if (json.success) {
+          // Trigger page transition animation
+          setIsTransitioning(true);
+          await new Promise(resolve => setTimeout(resolve, 600)); // Wait for exit animation
+          setCurrentDept(dept);
+          setPassword("");
+          // Clear previous data
+          setYearRecords([]);
+          setYearData({});
+          setFields({});
+          // Set active tab to 'form' for OPD and Special Units (not 'table'/report)
+          setSpecialUnitActiveTab('form');
+          setShowMainPage(true);
+          showAlert("success", `เข้าสู่ระบบแผนก: ${dept.name}`);
+
+          // Save session to sessionStorage
+          if (typeof window !== 'undefined') {
+            sessionStorage.setItem('qa_session', JSON.stringify({
+              role,
+              departmentId: dept.id,
+              timestamp: Date.now()
+            }));
+          }
+        } else {
+          showAlert("error", json.error || "รหัสผ่านไม่ถูกต้อง");
+        }
+      } catch (err) {
+        showAlert("error", "เกิดข้อผิดพลาดในการเข้าสู่ระบบ");
+      }
+    }
+    setIsLoggingIn(false);
   }
 
   /* ---------------------- เรียก API โหลด/บันทึกข้อมูล --------------------- */
@@ -1168,13 +2365,20 @@ export default function HomePage() {
     }
   }
 
-  async function handleLoadYear() {
-    if (!currentDept) return;
+  async function handleLoadYear(yearToLoad?: string) {
+    // Determine which department ID to use
+    const deptId = (role === "special_unit" || role === "opd") ? selectedDeptId : currentDept?.id;
+
+    if (!deptId) {
+      showAlert("warning", "กรุณาเลือกแผนกก่อน");
+      return;
+    }
+
     showSweetLoading("กำลังอัปเดตสถานะรายปี...");
     try {
       const params = new URLSearchParams({
-        departmentId: currentDept.id,
-        fiscalYear
+        departmentId: deptId,
+        fiscalYear: yearToLoad || fiscalYear
       }).toString();
 
       const res = await fetch(`/api/qa/by-year?${params}`);
@@ -1197,6 +2401,12 @@ export default function HomePage() {
       setYearData(map);
       const records = (json.records as QARecordView[] | undefined) ?? [];
       setYearRecords(records.map(rec => ({ ...rec, data: computeFields(rec.data, rec.fiscalYear, rec.month) })));
+
+      // Clear form fields after loading data for OPD and Special Units
+      if (role === "opd" || role === "special_unit") {
+        setFields({});
+      }
+
       Swal.close();
       showAlert("success", "อัปเดตสถานะรายปีสำเร็จ");
       showSweetSuccess("โหลดข้อมูลรายปีสำเร็จ");
@@ -1207,10 +2417,421 @@ export default function HomePage() {
     }
   }
 
+
   async function handleSave(e: React.FormEvent) {
     e.preventDefault();
+
+    // ========== Check for Duplicate Data (All Department Types) ==========
+    // Get the correct departmentId based on role
+    const checkDeptId = role === "user" ? currentDept?.id : selectedDeptId;
+
+    if (checkDeptId) {
+      try {
+        const checkRes = await fetch(
+          `/api/qa/check-duplicate?departmentId=${checkDeptId}&fiscalYear=${fiscalYear}&month=${month}`
+        );
+        const checkData = await checkRes.json();
+
+        if (checkData.exists) {
+          const result = await Swal.fire({
+            icon: 'warning',
+            title: '⚠️ พบข้อมูลซ้ำ',
+            html: `
+              <div style="text-align: left; margin-top: 10px;">
+                <p style="color: #64748b; margin-bottom: 15px;">
+                  เดือน <strong style="color: #ef4444;">${month}</strong> ปีงบประมาณ <strong style="color: #ef4444;">${fiscalYear}</strong>
+                </p>
+                <div style="background: #fef3c7; border-left: 4px solid #f59e0b; padding: 12px; border-radius: 6px;">
+                  <p style="color: #92400e; margin: 0; font-size: 14px;">
+                    <strong>⚠️ คุณได้ลงข้อมูลเดือนนี้แล้ว</strong><br/>
+                    กรุณาเลือกดำเนินการต่อไปนี้:
+                  </p>
+                </div>
+              </div>
+            `,
+            showCancelButton: true,
+            showDenyButton: true,
+            confirmButtonText: '🔄 เปลี่ยนเดือน',
+            denyButtonText: '✏️ อัปเดตข้อมูลเดิม',
+            cancelButtonText: 'ยกเลิก',
+            confirmButtonColor: '#3b82f6',
+            denyButtonColor: '#10b981',
+            cancelButtonColor: '#94a3b8',
+          });
+
+          if (result.isConfirmed) {
+            // User wants to change month - show month selector prompt
+            const { value: newMonth } = await Swal.fire({
+              title: 'เลือกเดือนใหม่',
+              input: 'select',
+              inputOptions: {
+                'ตุลาคม': 'ตุลาคม',
+                'พฤศจิกายน': 'พฤศจิกายน',
+                'ธันวาคม': 'ธันวาคม',
+                'มกราคม': 'มกราคม',
+                'กุมภาพันธ์': 'กุมภาพันธ์',
+                'มีนาคม': 'มีนาคม',
+                'เมษายน': 'เมษายน',
+                'พฤษภาคม': 'พฤษภาคม',
+                'มิถุนายน': 'มิถุนายน',
+                'กรกฎาคม': 'กรกฎาคม',
+                'สิงหาคม': 'สิงหาคม',
+                'กันยายน': 'กันยายน'
+              },
+              inputPlaceholder: 'เลือกเดือน',
+              showCancelButton: true,
+              confirmButtonText: 'ยืนยัน',
+              cancelButtonText: 'ยกเลิก',
+              confirmButtonColor: '#3b82f6'
+            });
+
+            if (newMonth) {
+              setMonth(newMonth);
+              showAlert("success", `เปลี่ยนเป็นเดือน ${newMonth} แล้ว กรุณากดบันทึกอีกครั้ง`);
+            }
+            return; // Don't proceed with save
+          } else if (!result.isDenied) {
+            // User clicked cancel
+            return;
+          }
+          // If isDenied (Update existing), continue to save/update
+        }
+      } catch (error) {
+        console.error("Error checking for duplicate:", error);
+        // Continue with save even if check fails
+      }
+    }
+
+    // ========== Special Unit Save Logic ==========
+    if (role === "special_unit") {
+      // Validate all required fields
+      const dept = DEPARTMENTS.find(d => d.id === selectedDeptId);
+      if (!dept) return;
+      const sectionConfig = getSpecialUnitSectionConfig(dept);
+      const allFields = sectionConfig.flatMap(s => s.fields);
+
+      const missingFields = allFields.filter(fieldId =>
+        !COMPUTED_FIELDS.has(fieldId) &&
+        fieldId !== "note" &&
+        (!fields[fieldId] || fields[fieldId].trim() === "")
+      );
+
+      if (missingFields.length > 0) {
+        // Get field labels for display
+        const missingFieldLabels = missingFields.slice(0, 5).map(f => FIELD_LABELS[f] || f);
+        const moreCount = missingFields.length > 5 ? missingFields.length - 5 : 0;
+
+        const result = await Swal.fire({
+          icon: "warning",
+          title: "⚠️ ข้อมูลไม่ครบถ้วน",
+          html: `
+            <div style="text-align: left; margin-top: 10px;">
+              <p style="color: #64748b; margin-bottom: 10px;">พบ <strong>${missingFields.length}</strong> ช่องที่ยังไม่ได้กรอก:</p>
+              <ul style="color: #475569; font-size: 13px; max-height: 150px; overflow-y: auto; padding-left: 20px; margin-bottom: 15px;">
+                ${missingFieldLabels.map(label => `<li style="margin-bottom: 4px;">${label}</li>`).join('')}
+                ${moreCount > 0 ? `<li style="color: #94a3b8;">... และอีก ${moreCount} ช่อง</li>` : ''}
+              </ul>
+              <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 10px; margin-top: 10px;">
+                <p style="color: #166534; font-size: 13px; margin: 0;">💡 <strong>หากไม่มีข้อมูล</strong> กรุณาใส่ค่า <strong>0</strong> ในช่องนั้นๆ</p>
+              </div>
+            </div>
+          `,
+          showCancelButton: true,
+          showDenyButton: true,
+          confirmButtonText: "✏️ ไปกรอกข้อมูล",
+          denyButtonText: "🔢 ใส่ 0 อัตโนมัติ",
+          cancelButtonText: "ยกเลิก",
+          confirmButtonColor: "#3b82f6",
+          denyButtonColor: "#10b981",
+        });
+
+        if (result.isDenied) {
+          // Auto-fill missing fields with "0"
+          const newFields = { ...fields };
+          missingFields.forEach(fieldId => {
+            newFields[fieldId] = "0";
+          });
+          setFields(newFields);
+          showAlert("success", `ใส่ค่า 0 ให้ ${missingFields.length} ช่องอัตโนมัติแล้ว กรุณากดบันทึกอีกครั้ง`);
+          return;
+        } else if (result.isConfirmed) {
+          // Scroll to first missing field after popup closes
+          const firstMissingField = missingFields[0];
+          console.log('Scrolling to field:', `field-${firstMissingField}`);
+
+          // Add delay to ensure popup is fully closed
+          setTimeout(() => {
+            const element = document.getElementById(`field-${firstMissingField}`);
+            console.log('Found element:', element);
+            if (element) {
+              element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              element.focus();
+              element.style.outline = '3px solid #ef4444';
+              element.style.outlineOffset = '2px';
+              setTimeout(() => {
+                element.style.outline = '';
+                element.style.outlineOffset = '';
+              }, 3000);
+            } else {
+              showAlert("warning", `ไม่พบช่อง: ${FIELD_LABELS[firstMissingField] || firstMissingField}`);
+            }
+          }, 300);
+        }
+        return;
+      }
+
+      // Compute all fields before saving
+      const computed = computeFields(fields, fiscalYear, month);
+
+      // Call real API to save data
+      setLoading(true);
+      showSweetLoading("กำลังบันทึกข้อมูล...");
+      try {
+        const res = await fetch("/api/qa/save", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            departmentId: selectedDeptId,
+            departmentName: dept.name,
+            fiscalYear,
+            month,
+            fields: computed
+          })
+        });
+
+        const json = await res.json();
+        Swal.close();
+
+        if (!json.success) {
+          showAlert("error", json.message || "บันทึกข้อมูลไม่สำเร็จ");
+          return;
+        }
+
+        showSweetSuccess(`บันทึกข้อมูลสำเร็จ! (${month} ${fiscalYear})`);
+        setEditingEntryId(null);
+        setFields({});
+        setSpecialUnitActiveTab('table');
+
+        // Reload year data
+        handleLoadYear();
+      } catch (err) {
+        console.error(err);
+        Swal.close();
+        showAlert("error", "เกิดข้อผิดพลาดในการบันทึกข้อมูล");
+      } finally {
+        setLoading(false);
+      }
+
+      return;
+    }
+
+    // ========== OPD Save Logic ==========
+    if (role === "opd") {
+      // Validate all required fields
+      const dept = DEPARTMENTS.find(d => d.id === selectedDeptId);
+      if (!dept) return;
+      const sectionConfig = getOPDSectionConfig();
+      const allFields = sectionConfig.flatMap(s => s.fields);
+
+      const missingFields = allFields.filter(fieldId =>
+        !COMPUTED_FIELDS.has(fieldId) &&
+        fieldId !== "note" &&
+        (!fields[fieldId] || fields[fieldId].trim() === "")
+      );
+
+      if (missingFields.length > 0) {
+        // Get field labels for display
+        const missingFieldLabels = missingFields.slice(0, 5).map(f => FIELD_LABELS[f] || f);
+        const moreCount = missingFields.length > 5 ? missingFields.length - 5 : 0;
+
+        const result = await Swal.fire({
+          icon: "warning",
+          title: "⚠️ ข้อมูลไม่ครบถ้วน",
+          html: `
+            <div style="text-align: left; margin-top: 10px;">
+              <p style="color: #64748b; margin-bottom: 10px;">พบ <strong>${missingFields.length}</strong> ช่องที่ยังไม่ได้กรอก:</p>
+              <ul style="color: #475569; font-size: 13px; max-height: 150px; overflow-y: auto; padding-left: 20px; margin-bottom: 15px;">
+                ${missingFieldLabels.map(label => `<li style="margin-bottom: 4px;">${label}</li>`).join('')}
+                ${moreCount > 0 ? `<li style="color: #94a3b8;">... และอีก ${moreCount} ช่อง</li>` : ''}
+              </ul>
+              <div style="background: #f0fdf4; border: 1px solid #86efac; border-radius: 8px; padding: 10px; margin-top: 10px;">
+                <p style="color: #166534; font-size: 13px; margin: 0;">💡 <strong>หากไม่มีข้อมูล</strong> กรุณาใส่ค่า <strong>0</strong> ในช่องนั้นๆ</p>
+              </div>
+            </div>
+          `,
+          showCancelButton: true,
+          showDenyButton: true,
+          confirmButtonText: "✏️ ไปกรอกข้อมูล",
+          denyButtonText: "🔢 ใส่ 0 อัตโนมัติ",
+          cancelButtonText: "ยกเลิก",
+          confirmButtonColor: "#3b82f6",
+          denyButtonColor: "#10b981",
+        });
+
+        if (result.isDenied) {
+          // Auto-fill missing fields with "0"
+          const newFields = { ...fields };
+          missingFields.forEach(fieldId => {
+            newFields[fieldId] = "0";
+          });
+          setFields(newFields);
+          showAlert("success", `ใส่ค่า 0 ให้ ${missingFields.length} ช่องอัตโนมัติแล้ว กรุณากดบันทึกอีกครั้ง`);
+          return;
+        } else if (result.isConfirmed) {
+          // Scroll to first missing field after popup closes
+          const firstMissingField = missingFields[0];
+          console.log('OPD - Scrolling to field:', `field-${firstMissingField}`);
+
+          // Add delay to ensure popup is fully closed
+          setTimeout(() => {
+            const element = document.getElementById(`field-${firstMissingField}`);
+            console.log('OPD - Found element:', element);
+            if (element) {
+              element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              element.focus();
+              element.style.outline = '3px solid #ef4444';
+              element.style.outlineOffset = '2px';
+              setTimeout(() => {
+                element.style.outline = '';
+                element.style.outlineOffset = '';
+              }, 3000);
+            } else {
+              showAlert("warning", `ไม่พบช่อง: ${FIELD_LABELS[firstMissingField] || firstMissingField}`);
+            }
+          }, 300);
+        }
+        return;
+      }
+
+      // Compute all fields before saving
+      const computed = computeFields(fields, fiscalYear, month);
+
+      // Call real API to save data
+      setLoading(true);
+      showSweetLoading("กำลังบันทึกข้อมูล...");
+      try {
+        const res = await fetch("/api/qa/save", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            departmentId: selectedDeptId,
+            departmentName: dept.name,
+            fiscalYear,
+            month,
+            fields: computed
+          })
+        });
+
+        const json = await res.json();
+        Swal.close();
+
+        if (!json.success) {
+          showAlert("error", json.message || "บันทึกข้อมูลไม่สำเร็จ");
+          return;
+        }
+
+        showSweetSuccess(`บันทึกข้อมูลสำเร็จ! (${month} ${fiscalYear})`);
+        setEditingEntryId(null);
+        setFields({});
+        setSpecialUnitActiveTab('table');
+
+        // Reload year data
+        handleLoadYear();
+      } catch (err) {
+        console.error(err);
+        Swal.close();
+        showAlert("error", "เกิดข้อผิดพลาดในการบันทึกข้อมูล");
+      } finally {
+        setLoading(false);
+      }
+
+      return;
+    }
+
+
+    // ========== Regular Department Save Logic (existing) ==========
     if (!currentDept || role !== "user") {
       showAlert("error", "ยังไม่เข้าสู่ระบบแผนก");
+      return;
+    }
+
+    // ตรวจสอบความครบถ้วนของข้อมูล - ทุกช่องที่ไม่ใช่ computed field ต้องมีค่า
+    const sectionConfig = getSectionConfig(currentDept);
+    const emptyFields: string[] = [];
+    const allFields = sectionConfig.flatMap(section => section.fields);
+
+    for (const fieldId of allFields) {
+      // ข้ามการตรวจสอบ computed fields และ note field
+      if (COMPUTED_FIELDS.has(fieldId) || fieldId === "note") {
+        continue;
+      }
+
+      const value = fields[fieldId];
+      if (!value || value.trim() === "") {
+        const label = FIELD_LABELS[fieldId] || fieldId;
+        emptyFields.push(label);
+      }
+    }
+
+    // ถ้ามีช่องว่าง แสดงข้อความเตือน
+    if (emptyFields.length > 0) {
+      await Swal.fire({
+        icon: "warning",
+        title: "⚠️ กรุณากรอกข้อมูลให้ครบถ้วน",
+        html: `
+          <div style="text-align: left;">
+            <p style="margin-bottom: 12px; color: #64748b;">พบช่องที่ยังไม่ได้กรอกข้อมูล <strong>${emptyFields.length}</strong> ช่อง:</p>
+            <div style="max-height: 300px; overflow-y: auto; background: #f8fafc; border-radius: 8px; padding: 12px;">
+              <ul style="margin: 0; padding-left: 20px; color: #475569;">
+                ${emptyFields.map(field => `<li style="margin: 6px 0;">${field}</li>`).join('')}
+              </ul>
+            </div>
+            <p style="margin-top: 16px; padding: 12px; background: #fef3c7; border-left: 4px solid #f59e0b; border-radius: 6px; font-size: 14px; color: #92400e;">
+              <strong>💡 ข้อแนะนำ:</strong> หากไม่มีข้อมูลในช่องใด กรุณาใส่ <strong>0</strong> แทน
+            </p>
+          </div>
+        `,
+        confirmButtonText: "ตกลง กลับไปกรอกข้อมูล",
+        confirmButtonColor: "#3b82f6",
+        background: "#ffffff",
+        customClass: {
+          popup: "rounded-2xl shadow-2xl",
+          title: "text-lg",
+          htmlContainer: "text-sm"
+        }
+      });
+
+      // Scroll ไปที่ช่องแรกที่ว่าง (ถ้าเป็นไปได้)
+      const firstEmptyFieldId = allFields.find(fieldId =>
+        !COMPUTED_FIELDS.has(fieldId) &&
+        fieldId !== "note" &&
+        (!fields[fieldId] || fields[fieldId].trim() === "")
+      );
+
+      if (firstEmptyFieldId) {
+        // หา input element และ focus
+        setTimeout(() => {
+          const inputs = document.querySelectorAll('input[type="text"]');
+          inputs.forEach((input) => {
+            if (input instanceof HTMLInputElement) {
+              const parent = input.closest('.flex.flex-col.gap-2');
+              if (parent) {
+                const label = parent.querySelector('label');
+                if (label && label.textContent?.includes(FIELD_LABELS[firstEmptyFieldId])) {
+                  input.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                  input.focus();
+                  // เพิ่ม highlight effect
+                  input.classList.add('ring-4', 'ring-red-300', 'border-red-500');
+                  setTimeout(() => {
+                    input.classList.remove('ring-4', 'ring-red-300', 'border-red-500');
+                  }, 2000);
+                }
+              }
+            }
+          });
+        }, 300);
+      }
+
       return;
     }
 
@@ -1243,6 +2864,10 @@ export default function HomePage() {
       Swal.close();
       showAlert("success", "บันทึกข้อมูลสำเร็จ");
       showSweetSuccess("บันทึกข้อมูลสำเร็จ");
+
+      // เคลียร์ฟอร์มหลังจากบันทึกสำเร็จ
+      setFields(computeFields({}, fiscalYear, month));
+
       handleLoadYear();
     } catch (err) {
       console.error(err);
@@ -1260,6 +2885,16 @@ export default function HomePage() {
     setFields(computeFields(tableRecord.data, tableRecord.fiscalYear, tableRecord.month));
     setActiveTab("form");
     showAlert("success", "โหลดข้อมูลเข้าสู่โหมดแก้ไขแล้ว");
+  }
+
+  // Function to edit data from Special Unit Report page
+  function handleEditFromSpecialUnitReport(record: QARecordView) {
+    if (!record) return;
+    setMonth(record.month);
+    setFiscalYear(record.fiscalYear);
+    setFields(computeFields(record.data, record.fiscalYear, record.month));
+    setSpecialUnitActiveTab("form");
+    showSweetSuccess(`โหลดข้อมูลเดือน ${record.month} เข้าสู่โหมดแก้ไขแล้ว`);
   }
 
   async function handleDeleteRecord() {
@@ -1316,6 +2951,23 @@ export default function HomePage() {
   }
 
   function handleFieldChange(id: string, value: string) {
+    // Allow any value for note field (หมายเหตุ)
+    if (id === 'note') {
+      setFields(prev => computeFields({ ...prev, [id]: value }, fiscalYear, month));
+      return;
+    }
+
+    // For OPD and Special Unit: enforce number-only validation for non-note fields
+    if (role === 'opd' || role === 'special_unit') {
+      // Allow empty, or valid number (including decimal)
+      if (value === '' || /^-?\d*\.?\d*$/.test(value)) {
+        setFields(prev => computeFields({ ...prev, [id]: value }, fiscalYear, month));
+      }
+      // If non-numeric, don't update - this prevents typing letters
+      return;
+    }
+
+    // Regular departments: allow all values
     setFields(prev => computeFields({ ...prev, [id]: value }, fiscalYear, month));
   }
 
@@ -1323,21 +2975,21 @@ export default function HomePage() {
 
   async function loadAllDepartmentsData() {
     if (role !== "admin") return;
-    
+
     setLoading(true);
     showSweetLoading("กำลังโหลดข้อมูลทั้งหมด...");
-    
+
     try {
       const res = await fetch(`/api/admin/all-data?fiscalYear=${adminSelectedYear}`);
       const json = await res.json();
-      
+
       Swal.close();
-      
+
       if (!json.success) {
         showAlert("error", json.message || "โหลดข้อมูลไม่สำเร็จ");
         return;
       }
-      
+
       setAllDepartmentsData(json.data || []);
       showSweetSuccess("โหลดข้อมูลสำเร็จ");
     } catch (error) {
@@ -1379,21 +3031,23 @@ export default function HomePage() {
     const value = fields[fieldId] ?? "";
 
     return (
-      <div key={fieldId} className="flex flex-col gap-1">
-        <label className="text-xs font-semibold text-slate-700">
+      <div key={fieldId} className="flex flex-col gap-2">
+        <label className="text-sm font-medium text-slate-700 flex items-center gap-2">
+          {isComputed && <span className="text-indigo-500 text-base">✨</span>}
           {label}
-          {isComputed && <span className="ml-1 text-[10px] text-indigo-500">(คำนวณอัตโนมัติ)</span>}
+          {isComputed && <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-100 text-indigo-600 font-semibold">อัตโนมัติ</span>}
         </label>
         <input
+          id={`field-${fieldId}`}
           type="text"
           value={value}
           readOnly={isComputed}
           onChange={e => !isComputed && handleFieldChange(fieldId, e.target.value)}
-          className={`w-full rounded-lg border px-3 py-2 text-sm focus:outline-none focus:ring-2 transition ${
-            isComputed
-              ? "bg-blue-50 border-blue-200 text-blue-900 focus:ring-blue-300"
-              : "border-slate-200 bg-white focus:ring-indigo-500"
-          }`}
+          className={`w-full rounded-xl border-2 px-4 py-3 text-sm font-medium transition-all duration-200 ${isComputed
+            ? "bg-gradient-to-br from-blue-50 to-indigo-50 border-blue-300 text-blue-900 cursor-not-allowed shadow-inner"
+            : "border-slate-300 bg-white hover:border-indigo-400 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-100 focus:shadow-lg hover:shadow-md input-enhanced hover-glow"
+            }`}
+          placeholder={isComputed ? "คำนวณอัตโนมัติ" : "กรอกข้อมูล..."}
         />
         {isComputed && renderComputedHint(fieldId)}
       </div>
@@ -1434,7 +3088,7 @@ export default function HomePage() {
       const totalDepts = DEPARTMENTS.filter(d => d.id !== "ADMIN").length;
       const deptsWithData = new Set(allDepartmentsData.map(d => d.departmentId)).size;
       const totalRecords = allDepartmentsData.length;
-      
+
       // Calculate averages
       let avgProductivity = 0;
       let avgLOS = 0;
@@ -1449,7 +3103,7 @@ export default function HomePage() {
           const los = parseFloat(data.averageLOS || "0");
           const cpr = parseFloat(data.s7_3 || "0");
           const ulcer = parseFloat(data.pressureUlcerRate || "0");
-          
+
           if (productivity > 0) avgProductivity += productivity;
           if (los > 0) avgLOS += los;
           totalCPR += cpr;
@@ -1560,10 +3214,10 @@ export default function HomePage() {
               ))}
             </select>
           </div>
-          
+
           {allDepartmentsData.length > 0 ? (
-            <DashboardAnalytics 
-              data={adminDashboardData} 
+            <DashboardAnalytics
+              data={adminDashboardData}
               isAdmin={true}
               selectedMonth={dashboardMonth}
             />
@@ -1621,11 +3275,10 @@ export default function HomePage() {
                         </td>
                         <td className="px-4 py-3 text-center text-sm">{record.month}</td>
                         <td className="px-4 py-3 text-center text-sm">
-                          <span className={`font-medium ${
-                            parseFloat(computed.productivityValue?.replace("%", "") || "0") >= 80
-                              ? "text-green-600"
-                              : "text-red-600"
-                          }`}>
+                          <span className={`font-medium ${parseFloat(computed.productivityValue?.replace("%", "") || "0") >= 80
+                            ? "text-green-600"
+                            : "text-red-600"
+                            }`}>
                             {computed.productivityValue || "-"}
                           </span>
                         </td>
@@ -1671,7 +3324,7 @@ export default function HomePage() {
                 {DEPARTMENTS.filter(d => d.id !== "ADMIN").map(dept => {
                   const deptRecords = allDepartmentsData.filter(r => r.departmentId === dept.id);
                   const monthsWithData = new Set(deptRecords.map(r => r.month));
-                  
+
                   return (
                     <tr key={dept.id} className="border-t border-slate-100">
                       <td
@@ -1682,11 +3335,33 @@ export default function HomePage() {
                       </td>
                       {MONTHS_TH.map(month => (
                         <td key={month} className="text-center p-1">
-                          <div className={`w-6 h-6 mx-auto rounded ${
-                            monthsWithData.has(month)
-                              ? "bg-green-500"
-                              : "bg-gray-200"
-                          }`} />
+                          <div
+                            onClick={() => {
+                              // Find record for this month
+                              const record = deptRecords.find(r => r.month === month);
+                              if (record) {
+                                // Compute fields to ensure data is up to date
+                                const computed = computeFields(record.data || {}, record.fiscalYear, record.month);
+                                setEditingRecord({ ...record, data: computed });
+                                setShowEditModal(true);
+                              } else {
+                                // Optional: Alert that no data exists (or leave silent/allow create?)
+                                // For now, silent or simple toast
+                                Swal.fire({
+                                  icon: 'info',
+                                  title: 'ยังไม่มีข้อมูล',
+                                  text: `ยังไม่มีการบันทึกข้อมูลของเดือน${month}`,
+                                  timer: 1000,
+                                  showConfirmButton: false
+                                });
+                              }
+                            }}
+                            className={`w-6 h-6 mx-auto rounded transition-all cursor-pointer hover:scale-110 ${monthsWithData.has(month)
+                              ? "bg-green-500 hover:ring-2 hover:ring-green-300"
+                              : "bg-gray-200 hover:bg-gray-300"
+                              }`}
+                            title={monthsWithData.has(month) ? "คลิกเพื่อแก้ไขข้อมูล" : "ยังไม่มีข้อมูล"}
+                          />
                         </td>
                       ))}
                     </tr>
@@ -1705,13 +3380,50 @@ export default function HomePage() {
             setEditingRecord(null);
           }}
           record={editingRecord}
+          onDelete={async (recordToDelete) => {
+            try {
+              // Delete API call
+              const res = await fetch("/api/qa/delete", {
+                method: "POST", // Assuming POST for delete action based on common patterns here
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                  departmentId: recordToDelete.departmentId,
+                  fiscalYear: recordToDelete.fiscalYear,
+                  month: recordToDelete.month
+                })
+              });
+
+              const json = await res.json();
+              if (json.success) {
+                // Remove from local state
+                setAllDepartmentsData(prev =>
+                  prev.filter(r =>
+                    !(r.departmentId === recordToDelete.departmentId &&
+                      r.fiscalYear === recordToDelete.fiscalYear &&
+                      r.month === recordToDelete.month)
+                  )
+                );
+                setShowEditModal(false);
+                setEditingRecord(null);
+                Swal.fire("ลบข้อมูลสำเร็จ", "", "success");
+
+                // Refresh data
+                // loadAllDepartmentsData(); // Optional, but state update is faster
+              } else {
+                Swal.fire("Error", "ไม่สามารถลบข้อมูลได้", "error");
+              }
+            } catch (err) {
+              console.error(err);
+              Swal.fire("Error", "เกิดข้อผิดพลาดในการลบ", "error");
+            }
+          }}
           onSave={(updatedRecord) => {
             // Update local state
-            setAllDepartmentsData(prev => 
-              prev.map(r => 
-                r.departmentId === updatedRecord.departmentId && 
-                r.month === updatedRecord.month && 
-                r.fiscalYear === updatedRecord.fiscalYear
+            setAllDepartmentsData(prev =>
+              prev.map(r =>
+                r.departmentId === updatedRecord.departmentId &&
+                  r.month === updatedRecord.month &&
+                  r.fiscalYear === updatedRecord.fiscalYear
                   ? updatedRecord
                   : r
               )
@@ -1724,114 +3436,1233 @@ export default function HomePage() {
     );
   }
 
+  function renderSpecialUnitReport() {
+    // CRITICAL: Filter yearRecords to show ONLY current department's data
+    // This prevents data contamination between Special Units
+    const specialUnitRecords = yearRecords.filter(r => r.departmentId === selectedDeptId);
+
+    // Detect unit type based on selectedDeptId
+    const unitType = selectedDeptId === "SPECIAL001" ? "OR"
+      : selectedDeptId === "SPECIAL002" ? "ER"
+        : selectedDeptId === "SPECIAL003" ? "Anesth"
+          : selectedDeptId === "SPECIAL004" ? "LR"
+            : "OR"; // Default
+
+    // Unit-specific dashboard configs based on real section data
+    type MetricConfig = { label: string; field: string; suffix?: string; color: string };
+    type ChartConfig = { title: string; field: string; type: "area" | "bar"; color: string };
+    type UnitDashboardConfig = {
+      name: string;
+      icon: string;
+      useApexCharts?: boolean;
+      metrics: MetricConfig[];
+      charts: ChartConfig[];
+      complicationMetrics?: { label: string; field: string; color: string }[];
+    };
+
+    const dashboardConfigs: Record<string, UnitDashboardConfig> = {
+      "OR": {
+        name: "ห้องผ่าตัด (OR)",
+        icon: "🔪",
+        useApexCharts: true,
+        metrics: [
+          { label: "ระบุตัว ผป. ผิดคน", field: "or_1_1", suffix: "ครั้ง", color: "amber" },
+          { label: "ตายไม่คาดคิด", field: "or_1_5", suffix: "ครั้ง", color: "rose" },
+          { label: "pt. เสียชีวิต", field: "or_4_1", suffix: "ครั้ง", color: "purple" },
+          { label: "อุบัติเหตุบุคลากร", field: "or_1_7", suffix: "ครั้ง", color: "blue" },
+          { label: "ผ่าตัดผิดคน/ผิดตำแหน่ง", field: "or_1_3", suffix: "ครั้ง", color: "emerald" },
+          { label: "สิ่งของตกค้างหลังผ่าตัด", field: "or_1_4", suffix: "ครั้ง", color: "orange" },
+        ],
+        charts: [
+          { title: "ระบุตัว ผป. ผิดคน", field: "or_1_1", type: "bar", color: "#f59e0b" },
+          { title: "ตายไม่คาดคิด", field: "or_1_5", type: "bar", color: "#f43f5e" },
+          { title: "pt. เสียชีวิต", field: "or_4_1", type: "bar", color: "#8b5cf6" },
+          { title: "อุบัติเหตุบุคลากร", field: "or_1_7", type: "bar", color: "#3b82f6" },
+          { title: "ผ่าตัดผิดคน/ผิดตำแหน่ง", field: "or_1_3", type: "bar", color: "#10b981" },
+          { title: "สิ่งของตกค้างหลังผ่าตัด", field: "or_1_4", type: "bar", color: "#f97316" },
+        ]
+      },
+      "ER": {
+        name: "ห้องอุบัติเหตุ ฉุกเฉิน (ER)",
+        icon: "🚑",
+        useApexCharts: true,
+        metrics: [
+          { label: "ระบุตัว ผป. ผิดคน", field: "er_1_1", suffix: "ครั้ง", color: "amber" },
+          { label: "ตายไม่คาดคิด", field: "er_1_5", suffix: "ครั้ง", color: "rose" },
+          { label: "pt. เสียชีวิต", field: "er_4_1", suffix: "ครั้ง", color: "purple" },
+          { label: "CPR ทั้งหมด", field: "er_5_2", suffix: "ครั้ง", color: "blue" },
+          { label: "CPR สำเร็จ", field: "er_5_3", suffix: "ครั้ง", color: "emerald" },
+          { label: "กลับมารักษาซ้ำ 48 ชม.", field: "er_h3_4", suffix: "ครั้ง", color: "orange" },
+        ],
+        charts: [
+          { title: "ระบุตัว ผป. ผิดคน", field: "er_1_1", type: "bar", color: "#f59e0b" },
+          { title: "ตายไม่คาดคิด", field: "er_1_5", type: "bar", color: "#f43f5e" },
+          { title: "pt. เสียชีวิต", field: "er_4_1", type: "bar", color: "#8b5cf6" },
+          { title: "CPR ทั้งหมด", field: "er_5_2", type: "bar", color: "#3b82f6" },
+          { title: "CPR สำเร็จ", field: "er_5_3", type: "bar", color: "#10b981" },
+          { title: "กลับมารักษาซ้ำ 48 ชม.", field: "er_h3_4", type: "bar", color: "#f97316" },
+        ]
+      },
+      "Anesth": {
+        name: "วิสัญญีพยาบาล (Anesth)",
+        icon: "💉",
+        useApexCharts: true,
+        metrics: [
+          { label: "ระบุตัว ผป. ผิดคน", field: "an_1_1", suffix: "ครั้ง", color: "amber" },
+          { label: "ตายไม่คาดคิด", field: "an_1_5", suffix: "ครั้ง", color: "rose" },
+          { label: "pt. เสียชีวิต", field: "an_4_1", suffix: "ครั้ง", color: "purple" },
+          { label: "อุบัติเหตุบุคลากร", field: "an_1_7", suffix: "ครั้ง", color: "blue" },
+          { label: "Aspiration", field: "an_h3_2_1", suffix: "ครั้ง", color: "emerald" },
+          { label: "แพ้ยา", field: "an_h3_2_3", suffix: "ครั้ง", color: "orange" },
+          { label: "ผิดพลาดใส่ท่อช่วยหายใจ", field: "an_h3_2_2", suffix: "ครั้ง", color: "cyan" },
+          { label: "เสียชีวิตในห้องผ่าตัด", field: "an_h3_2_4", suffix: "ครั้ง", color: "red" },
+        ],
+        charts: [
+          { title: "ระบุตัว ผป. ผิดคน", field: "an_1_1", type: "bar", color: "#f59e0b" },
+          { title: "ตายไม่คาดคิด", field: "an_1_5", type: "bar", color: "#f43f5e" },
+          { title: "pt. เสียชีวิต", field: "an_4_1", type: "bar", color: "#8b5cf6" },
+          { title: "อุบัติเหตุบุคลากร", field: "an_1_7", type: "bar", color: "#3b82f6" },
+          { title: "Aspiration", field: "an_h3_2_1", type: "bar", color: "#10b981" },
+          { title: "แพ้ยา", field: "an_h3_2_3", type: "bar", color: "#f97316" },
+        ]
+      },
+      "LR": {
+        name: "ห้องคลอด (LR)",
+        icon: "👶",
+        useApexCharts: true,
+        metrics: [
+          { label: "ระบุตัว ผป. ผิดคน", field: "lr_1_1", suffix: "ครั้ง", color: "amber" },
+          { label: "ตายไม่คาดคิด", field: "lr_1_5", suffix: "ครั้ง", color: "rose" },
+          { label: "pt. เสียชีวิต", field: "lr_4_1", suffix: "ครั้ง", color: "purple" },
+          { label: "อุบัติเหตุบุคลากร", field: "lr_1_7", suffix: "ครั้ง", color: "blue" },
+        ],
+        charts: [
+          { title: "ระบุตัว ผป. ผิดคน", field: "lr_1_1", type: "bar", color: "#f59e0b" },
+          { title: "ตายไม่คาดคิด", field: "lr_1_5", type: "bar", color: "#f43f5e" },
+          { title: "pt. เสียชีวิต", field: "lr_4_1", type: "bar", color: "#8b5cf6" },
+          { title: "อุบัติเหตุบุคลากร", field: "lr_1_7", type: "bar", color: "#3b82f6" },
+        ],
+        // Second chart section: Obstetric Complications
+        complicationMetrics: [
+          { label: "Uteri-Rupture", field: "lr_h2_1_2", color: "#ef4444" },
+          { label: "มดลูกปลิ้น", field: "lr_h2_1_3", color: "#f97316" },
+          { label: "Tear Rectum", field: "lr_h2_1_4", color: "#eab308" },
+          { label: "Hematoma", field: "lr_h2_1_5", color: "#84cc16" },
+          { label: "ตกเลือดหลังคลอด", field: "lr_h2_1_6_1", color: "#22c55e" },
+          { label: "ลืม Gauze", field: "lr_h2_1_7", color: "#14b8a6" },
+          { label: "ทารกเสียชีวิต", field: "lr_h2_1_8", color: "#06b6d4" },
+          { label: "ทารกบาดเจ็บ", field: "lr_h2_2", color: "#3b82f6" },
+          { label: "Birth Asphyxia", field: "lr_h2_3_1", color: "#8b5cf6" },
+          { label: "ระบุแพทย์ทารกผิด", field: "lr_h2_4", color: "#d946ef" },
+        ]
+      },
+    };
+
+    const config = dashboardConfigs[unitType];
+
+    // Filter records based on selected month
+    const filteredRecords = month === "ทั้งปี"
+      ? specialUnitRecords
+      : specialUnitRecords.filter(r => r.month === month);
+
+    // Calculate summary stats dynamically from filtered data
+    const monthsWithData = specialUnitRecords.length;  // Total months with data (for overview)
+    const displayedMonths = filteredRecords.length; // Months being displayed
+    const monthsWithDataSet = new Set(specialUnitRecords.map(r => r.month));
+    const monthsMissing = MONTHS_TH.filter(m => !monthsWithDataSet.has(m));
+
+    // Calculate metric values dynamically from filtered records
+    const metricValues: Record<string, { avg: number; total: number }> = {};
+    config.metrics.forEach(m => {
+      let total = 0;
+      filteredRecords.forEach(rec => {
+        const val = parseFloat(rec.data[m.field]?.replace('%', '') || "0");
+        total += val;
+      });
+      metricValues[m.field] = {
+        avg: displayedMonths > 0 ? total / displayedMonths : 0,
+        total
+      };
+    });
+
+
+
+    return (
+      <div className="space-y-6">
+        {/* Header with Year/Month Selector */}
+        <section className="bg-white rounded-2xl shadow-sm p-5 border border-slate-100">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+              <h2 className="text-lg font-bold text-slate-800 flex items-center gap-2">
+                <span>{config.icon}</span> ตารางแสดงข้อมูลรายเดือน - {config.name}
+              </h2>
+              <p className="text-xs text-slate-500 mt-1">เลือกปีงบประมาณและเดือนเพื่อดูข้อมูลที่บันทึกไว้</p>
+            </div>
+            <div className="flex items-center gap-3 flex-wrap">
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-semibold text-slate-600">ปีงบประมาณ (พ.ศ.)</label>
+                <select
+                  className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  value={fiscalYear}
+                  onChange={e => setFiscalYear(e.target.value)}
+                >
+                  {FISCAL_YEARS.map(y => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex items-center gap-2">
+                <label className="text-xs font-semibold text-slate-600">เดือน</label>
+                <select
+                  className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+                  value={month}
+                  onChange={e => setMonth(e.target.value)}
+                >
+                  <option value="ทั้งปี">ทั้งปี (ภาพรวม)</option>
+                  {MONTHS_TH.map(m => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </select>
+              </div>
+              <button
+                onClick={() => handleLoadYear()}
+                className="px-4 py-2 bg-gradient-to-r from-purple-600 to-indigo-600 text-white rounded-lg text-sm font-semibold hover:shadow-lg transition flex items-center gap-2"
+              >
+                📥 โหลดข้อมูลแสดงผล
+              </button>
+              <button
+                onClick={() => handleLoadYear()}
+                className="px-3 py-2 bg-slate-100 text-slate-600 rounded-lg text-sm hover:bg-slate-200 transition flex items-center gap-2"
+              >
+                🔄 อัปเดต
+              </button>
+            </div>
+          </div>
+        </section>
+
+        {/* Dashboard Analytics - Special Unit Specific */}
+        <section className="bg-white rounded-2xl shadow-sm p-5 border border-slate-100">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center">
+              📊
+            </div>
+            <div>
+              <h3 className="text-base font-semibold text-slate-800">Dashboard Analytics - {config.name}</h3>
+              <p className="text-xs text-slate-500">
+                {month === "ทั้งปี"
+                  ? `วิเคราะห์ข้อมูลภาพรวมทั้งปี • ปีงบประมาณ ${fiscalYear}`
+                  : `วิเคราะห์ข้อมูลเดือน ${month} • ปีงบประมาณ ${fiscalYear}`
+                }
+              </p>
+            </div>
+          </div>
+
+          {filteredRecords.length > 0 ? (
+            <>
+              {/* Summary Cards - Dynamic based on unit config */}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                {config.metrics.map((metric, idx) => {
+                  const colorClasses: Record<string, { bg: string; text: string; border: string }> = {
+                    "purple": { bg: "from-purple-50 to-violet-50", text: "text-purple-700", border: "border-purple-100" },
+                    "rose": { bg: "from-rose-50 to-pink-50", text: "text-rose-700", border: "border-rose-100" },
+                    "emerald": { bg: "from-emerald-50 to-green-50", text: "text-emerald-700", border: "border-emerald-100" },
+                    "blue": { bg: "from-blue-50 to-indigo-50", text: "text-blue-700", border: "border-blue-100" },
+                    "amber": { bg: "from-amber-50 to-yellow-50", text: "text-amber-700", border: "border-amber-100" },
+                  };
+                  const colors = colorClasses[metric.color] || colorClasses["blue"];
+                  const value = metricValues[metric.field];
+                  const displayValue = metric.suffix === "ครั้ง" ? value?.total?.toFixed(0) : value?.avg?.toFixed(2);
+
+                  return (
+                    <div key={idx} className={`bg-gradient-to-br ${colors.bg} rounded-xl p-4 border ${colors.border}`}>
+                      <p className={`text-xs font-semibold ${colors.text.replace('700', '600')} uppercase tracking-wide`}>{metric.label}</p>
+                      <p className={`text-3xl font-bold ${colors.text} mt-2`}>{displayValue || "0"}{metric.suffix}</p>
+                      <p className={`text-xs ${colors.text.replace('700', '500')} mt-1`}>{month === "ทั้งปี" ? `จากข้อมูล ${displayedMonths} เดือน` : `ข้อมูลเดือน ${month}`}</p>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Charts - Dynamic based on unit config */}
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
+                {config.useApexCharts ? (
+                  // Enhanced Professional Recharts for ER
+                  config.charts.map((chart, idx) => {
+                    const chartData = filteredRecords.map(rec => ({
+                      month: rec.month.slice(0, 3),
+                      value: parseFloat(rec.data[chart.field] || "0")
+                    })).sort((a, b) => MONTHS_TH.findIndex(m => m.startsWith(a.month)) - MONTHS_TH.findIndex(m => m.startsWith(b.month)));
+
+                    const gradientId = `erGradient${idx}`;
+                    const glowId = `erGlow${idx}`;
+
+                    // Color mapping for all 6 metrics
+                    const colorMap: Record<string, { start: string; end: string }> = {
+                      "#f59e0b": { start: "#fbbf24", end: "#d97706" },  // amber - ระบุตัว ผป.
+                      "#f43f5e": { start: "#fb7185", end: "#e11d48" },  // rose - ตายไม่คาดคิด
+                      "#8b5cf6": { start: "#a78bfa", end: "#7c3aed" },  // purple - pt. เสียชีวิต
+                      "#3b82f6": { start: "#60a5fa", end: "#2563eb" },  // blue - CPR ทั้งหมด
+                      "#10b981": { start: "#34d399", end: "#059669" },  // emerald - CPR สำเร็จ
+                      "#f97316": { start: "#fb923c", end: "#ea580c" },  // orange - กลับมารักษาซ้ำ
+                    };
+                    const barColor = colorMap[chart.color] || { start: chart.color, end: chart.color };
+
+                    return (
+                      <div key={idx} className="relative overflow-hidden rounded-2xl bg-white border border-slate-200 shadow-lg hover:shadow-xl transition-all duration-300">
+                        {/* Header with gradient accent */}
+                        <div className="px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-slate-50 to-white">
+                          <div className="flex items-center justify-between">
+                            <div className="flex items-center gap-3">
+                              <div className={`w-10 h-10 rounded-xl flex items-center justify-center shadow-lg`}
+                                style={{ background: `linear-gradient(135deg, ${barColor.start}, ${barColor.end})` }}>
+                                <span className="text-white text-lg">📊</span>
+                              </div>
+                              <div>
+                                <h4 className="text-base font-bold text-slate-800">{chart.title}</h4>
+                                <p className="text-xs text-slate-500">รายเดือน • ปีงบประมาณ {fiscalYear}</p>
+                              </div>
+                            </div>
+                            <div className="px-3 py-1.5 rounded-full text-xs font-bold"
+                              style={{ background: `linear-gradient(135deg, ${barColor.start}20, ${barColor.end}10)`, color: barColor.end }}>
+                              {chartData.reduce((sum, d) => sum + d.value, 0)} รวมทั้งหมด
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Chart Area */}
+                        <div className="p-5">
+                          <div className="h-64">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <BarChart data={chartData} margin={{ top: 20, right: 20, left: 0, bottom: 10 }}>
+                                <defs>
+                                  <linearGradient id={gradientId} x1="0" y1="0" x2="0" y2="1">
+                                    <stop offset="0%" stopColor={barColor.start} stopOpacity={1} />
+                                    <stop offset="100%" stopColor={barColor.end} stopOpacity={0.9} />
+                                  </linearGradient>
+                                  <filter id={glowId} x="-20%" y="-20%" width="140%" height="140%">
+                                    <feGaussianBlur stdDeviation="3" result="coloredBlur" />
+                                    <feMerge>
+                                      <feMergeNode in="coloredBlur" />
+                                      <feMergeNode in="SourceGraphic" />
+                                    </feMerge>
+                                  </filter>
+                                </defs>
+                                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                                <XAxis
+                                  dataKey="month"
+                                  axisLine={false}
+                                  tickLine={false}
+                                  tick={{ fill: '#64748b', fontSize: 12, fontWeight: 500 }}
+                                />
+                                <YAxis
+                                  axisLine={false}
+                                  tickLine={false}
+                                  tick={{ fill: '#94a3b8', fontSize: 11 }}
+                                  allowDecimals={false}
+                                />
+                                <Tooltip
+                                  cursor={{ fill: 'rgba(99, 102, 241, 0.08)', radius: 8 }}
+                                  contentStyle={{
+                                    borderRadius: '12px',
+                                    border: 'none',
+                                    boxShadow: '0 10px 40px -10px rgba(0,0,0,0.2)',
+                                    background: 'linear-gradient(135deg, #fff 0%, #f8fafc 100%)',
+                                    padding: '12px 16px'
+                                  }}
+                                  formatter={(value: number) => [`${value} ครั้ง`, chart.title]}
+                                  labelStyle={{ fontWeight: 600, color: '#334155', marginBottom: 4 }}
+                                />
+                                <Bar
+                                  dataKey="value"
+                                  fill={`url(#${gradientId})`}
+                                  radius={[8, 8, 0, 0]}
+                                  filter={`url(#${glowId})`}
+                                  maxBarSize={50}
+                                >
+                                  <LabelList
+                                    dataKey="value"
+                                    position="top"
+                                    fill="#475569"
+                                    fontSize={11}
+                                    fontWeight={600}
+                                    formatter={(value: number) => value > 0 ? value : ''}
+                                  />
+                                </Bar>
+                              </BarChart>
+                            </ResponsiveContainer>
+                          </div>
+                        </div>
+
+                        {/* Decorative gradient line at bottom */}
+                        <div className="h-1" style={{ background: `linear-gradient(90deg, ${barColor.start}, ${barColor.end})` }}></div>
+                      </div>
+                    );
+                  })
+                ) : (
+                  // Recharts for other units
+                  config.charts.map((chart, idx) => (
+                    <div key={idx} className="bg-slate-50 rounded-xl p-4">
+                      <h4 className="text-sm font-semibold text-slate-700 mb-3">{chart.title} รายเดือน</h4>
+                      <div className="h-64">
+                        <ResponsiveContainer width="100%" height="100%">
+                          {chart.type === "area" ? (
+                            <AreaChart data={filteredRecords.map(rec => ({
+                              month: rec.month.slice(0, 3),
+                              value: parseFloat(rec.data[chart.field]?.replace('%', '') || "0")
+                            })).sort((a, b) => MONTHS_TH.findIndex(m => m.startsWith(a.month)) - MONTHS_TH.findIndex(m => m.startsWith(b.month)))}>
+                              <defs>
+                                <linearGradient id={`chartGrad${idx}`} x1="0" y1="0" x2="0" y2="1">
+                                  <stop offset="5%" stopColor={chart.color} stopOpacity={0.8} />
+                                  <stop offset="95%" stopColor={chart.color} stopOpacity={0} />
+                                </linearGradient>
+                              </defs>
+                              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                              <XAxis dataKey="month" style={{ fontSize: '10px' }} />
+                              <YAxis domain={[0, 100]} />
+                              <Tooltip contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                              <Area type="monotone" dataKey="value" stroke={chart.color} fillOpacity={1} fill={`url(#chartGrad${idx})`} name={chart.title} />
+                            </AreaChart>
+                          ) : (
+                            <BarChart data={filteredRecords.map(rec => ({
+                              month: rec.month.slice(0, 3),
+                              value: parseFloat(rec.data[chart.field] || "0")
+                            })).sort((a, b) => MONTHS_TH.findIndex(m => m.startsWith(a.month)) - MONTHS_TH.findIndex(m => m.startsWith(b.month)))}>
+                              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" />
+                              <XAxis dataKey="month" style={{ fontSize: '10px' }} />
+                              <YAxis allowDecimals={false} />
+                              <Tooltip cursor={{ fill: '#f1f5f9' }} contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }} />
+                              <Bar dataKey="value" fill={chart.color} radius={[4, 4, 0, 0]} name={chart.title} barSize={30} />
+                            </BarChart>
+                          )}
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+
+              {/* Yearly Comparison Chart - แสดงภาพรวมเปรียบเทียบรายปีงบประมาณ */}
+              {config.useApexCharts && (
+                <div className="mt-6 relative overflow-hidden rounded-2xl bg-white border border-slate-200 shadow-lg">
+                  {/* Header */}
+                  <div className="px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-indigo-50 via-purple-50 to-pink-50">
+                    <div className="flex items-center justify-between flex-wrap gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-xl flex items-center justify-center shadow-lg bg-gradient-to-br from-indigo-500 to-purple-600">
+                          <span className="text-white text-xl">📈</span>
+                        </div>
+                        <div>
+                          <h4 className="text-lg font-bold text-slate-800">เปรียบเทียบอุบัติการณ์รายปีงบประมาณ</h4>
+                          <p className="text-xs text-slate-500">แสดงแนวโน้มอุบัติการณ์แต่ละประเภทตลอดปีงบประมาณ • หน่วย: ครั้ง</p>
+                        </div>
+                      </div>
+                      {/* Dynamic Legend from config metrics */}
+                      <div className="flex flex-wrap items-center gap-3 text-xs">
+                        {config.metrics.slice(0, 5).map((m, i) => {
+                          const colors = ['#f59e0b', '#f43f5e', '#8b5cf6', '#3b82f6', '#10b981'];
+                          return (
+                            <div key={i} className="flex items-center gap-1.5">
+                              <div className="w-3 h-3 rounded-full" style={{ backgroundColor: colors[i] }}></div>
+                              <span className="text-slate-600">{m.label}</span>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Chart */}
+                  <div className="p-5">
+                    <div className="h-80">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart
+                          data={FISCAL_YEARS.map(year => {
+                            // Calculate total for each metric per year
+                            const yearData = yearRecords.filter(r => r.fiscalYear === year);
+                            const result: Record<string, string | number> = { year: `พ.ศ. ${year}` };
+                            config.metrics.slice(0, 5).forEach((m, i) => {
+                              result[`metric${i}`] = yearData.reduce((sum, rec) => sum + parseFloat(rec.data[m.field] || "0"), 0);
+                            });
+                            return result;
+                          })}
+                          margin={{ top: 20, right: 30, left: 20, bottom: 10 }}
+                        >
+                          <defs>
+                            <linearGradient id="lineGrad0" x1="0" y1="0" x2="1" y2="0">
+                              <stop offset="0%" stopColor="#fbbf24" />
+                              <stop offset="100%" stopColor="#f59e0b" />
+                            </linearGradient>
+                            <linearGradient id="lineGrad1" x1="0" y1="0" x2="1" y2="0">
+                              <stop offset="0%" stopColor="#fb7185" />
+                              <stop offset="100%" stopColor="#f43f5e" />
+                            </linearGradient>
+                            <linearGradient id="lineGrad2" x1="0" y1="0" x2="1" y2="0">
+                              <stop offset="0%" stopColor="#a78bfa" />
+                              <stop offset="100%" stopColor="#8b5cf6" />
+                            </linearGradient>
+                            <linearGradient id="lineGrad3" x1="0" y1="0" x2="1" y2="0">
+                              <stop offset="0%" stopColor="#60a5fa" />
+                              <stop offset="100%" stopColor="#3b82f6" />
+                            </linearGradient>
+                            <linearGradient id="lineGrad4" x1="0" y1="0" x2="1" y2="0">
+                              <stop offset="0%" stopColor="#34d399" />
+                              <stop offset="100%" stopColor="#10b981" />
+                            </linearGradient>
+                            <filter id="lineGlowMetric" x="-20%" y="-20%" width="140%" height="140%">
+                              <feGaussianBlur stdDeviation="2" result="coloredBlur" />
+                              <feMerge>
+                                <feMergeNode in="coloredBlur" />
+                                <feMergeNode in="SourceGraphic" />
+                              </feMerge>
+                            </filter>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                          <XAxis
+                            dataKey="year"
+                            axisLine={false}
+                            tickLine={false}
+                            tick={{ fill: '#64748b', fontSize: 12, fontWeight: 500 }}
+                          />
+                          <YAxis
+                            axisLine={false}
+                            tickLine={false}
+                            tick={{ fill: '#94a3b8', fontSize: 11 }}
+                            allowDecimals={false}
+                          />
+                          <Tooltip
+                            contentStyle={{
+                              borderRadius: '12px',
+                              border: 'none',
+                              boxShadow: '0 10px 40px -10px rgba(0,0,0,0.2)',
+                              background: 'linear-gradient(135deg, #fff 0%, #f8fafc 100%)',
+                              padding: '12px 16px'
+                            }}
+                            formatter={(value: number, name: string) => {
+                              const idx = parseInt(name.replace('metric', ''));
+                              return [`${value} ครั้ง`, config.metrics[idx]?.label || name];
+                            }}
+                            labelStyle={{ fontWeight: 600, color: '#334155', marginBottom: 4 }}
+                          />
+                          <Legend
+                            formatter={(value) => {
+                              const idx = parseInt(value.replace('metric', ''));
+                              return config.metrics[idx]?.label || value;
+                            }}
+                            wrapperStyle={{ paddingTop: 10 }}
+                          />
+
+                          {/* Dynamic Lines for each metric */}
+                          {config.metrics.slice(0, 5).map((m, i) => {
+                            const dotColors = ['#f59e0b', '#f43f5e', '#8b5cf6', '#3b82f6', '#10b981'];
+                            return (
+                              <Line
+                                key={i}
+                                type="monotone"
+                                dataKey={`metric${i}`}
+                                stroke={`url(#lineGrad${i})`}
+                                strokeWidth={3}
+                                dot={{ r: 6, fill: dotColors[i], strokeWidth: 2, stroke: '#fff' }}
+                                activeDot={{ r: 8, fill: dotColors[i], stroke: '#fff', strokeWidth: 2 }}
+                                filter="url(#lineGlowMetric)"
+                              />
+                            );
+                          })}
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+
+                  {/* Decorative gradient line at bottom */}
+                  <div className="h-1.5 bg-gradient-to-r from-indigo-500 via-purple-500 to-pink-500"></div>
+                </div>
+              )}
+
+              {/* Second Chart: LR Obstetric Complications */}
+              {config.complicationMetrics && config.complicationMetrics.length > 0 && (
+                <div className="mt-6 relative overflow-hidden rounded-2xl bg-white border border-slate-200 shadow-lg">
+                  {/* Header */}
+                  <div className="px-5 py-4 border-b border-slate-100 bg-gradient-to-r from-pink-50 via-rose-50 to-red-50">
+                    <div className="flex items-center justify-between flex-wrap gap-3">
+                      <div className="flex items-center gap-3">
+                        <div className="w-12 h-12 rounded-xl flex items-center justify-center shadow-lg bg-gradient-to-br from-pink-500 to-rose-600">
+                          <span className="text-white text-xl">🏥</span>
+                        </div>
+                        <div>
+                          <h4 className="text-lg font-bold text-slate-800">ภาวะแทรกซ้อนทางสูติกรรม</h4>
+                          <p className="text-xs text-slate-500">เปรียบเทียบอุบัติการณ์ภาวะแทรกซ้อนรายปีงบประมาณ • หน่วย: ครั้ง</p>
+                        </div>
+                      </div>
+                      {/* Legend */}
+                      <div className="flex flex-wrap items-center gap-2 text-xs max-w-xl">
+                        {config.complicationMetrics.slice(0, 6).map((m, i) => (
+                          <div key={i} className="flex items-center gap-1">
+                            <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: m.color }}></div>
+                            <span className="text-slate-600">{m.label}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Chart */}
+                  <div className="p-5">
+                    <div className="h-80">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart
+                          data={FISCAL_YEARS.map(year => {
+                            const yearData = yearRecords.filter(r => r.fiscalYear === year);
+                            const result: Record<string, string | number> = { year: `พ.ศ. ${year}` };
+                            config.complicationMetrics!.forEach((m, i) => {
+                              result[`comp${i}`] = yearData.reduce((sum, rec) => sum + parseFloat(rec.data[m.field] || "0"), 0);
+                            });
+                            return result;
+                          })}
+                          margin={{ top: 20, right: 30, left: 20, bottom: 10 }}
+                        >
+                          <defs>
+                            {config.complicationMetrics.map((m, i) => (
+                              <linearGradient key={i} id={`compGrad${i}`} x1="0" y1="0" x2="1" y2="0">
+                                <stop offset="0%" stopColor={m.color} stopOpacity={0.8} />
+                                <stop offset="100%" stopColor={m.color} />
+                              </linearGradient>
+                            ))}
+                            <filter id="compGlow" x="-20%" y="-20%" width="140%" height="140%">
+                              <feGaussianBlur stdDeviation="2" result="coloredBlur" />
+                              <feMerge>
+                                <feMergeNode in="coloredBlur" />
+                                <feMergeNode in="SourceGraphic" />
+                              </feMerge>
+                            </filter>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" vertical={false} />
+                          <XAxis
+                            dataKey="year"
+                            axisLine={false}
+                            tickLine={false}
+                            tick={{ fill: '#64748b', fontSize: 12, fontWeight: 500 }}
+                          />
+                          <YAxis
+                            axisLine={false}
+                            tickLine={false}
+                            tick={{ fill: '#94a3b8', fontSize: 11 }}
+                            allowDecimals={false}
+                          />
+                          <Tooltip
+                            contentStyle={{
+                              borderRadius: '12px',
+                              border: 'none',
+                              boxShadow: '0 10px 40px -10px rgba(0,0,0,0.2)',
+                              background: 'linear-gradient(135deg, #fff 0%, #f8fafc 100%)',
+                              padding: '12px 16px'
+                            }}
+                            formatter={(value: number, name: string) => {
+                              const idx = parseInt(name.replace('comp', ''));
+                              return [`${value} ครั้ง`, config.complicationMetrics![idx]?.label || name];
+                            }}
+                            labelStyle={{ fontWeight: 600, color: '#334155', marginBottom: 4 }}
+                          />
+                          <Legend
+                            formatter={(value) => {
+                              const idx = parseInt(value.replace('comp', ''));
+                              return config.complicationMetrics![idx]?.label || value;
+                            }}
+                            wrapperStyle={{ paddingTop: 10 }}
+                          />
+
+                          {/* Lines for each complication */}
+                          {config.complicationMetrics.map((m, i) => (
+                            <Line
+                              key={i}
+                              type="monotone"
+                              dataKey={`comp${i}`}
+                              stroke={`url(#compGrad${i})`}
+                              strokeWidth={2.5}
+                              dot={{ r: 5, fill: m.color, strokeWidth: 2, stroke: '#fff' }}
+                              activeDot={{ r: 7, fill: m.color, stroke: '#fff', strokeWidth: 2 }}
+                              filter="url(#compGlow)"
+                            />
+                          ))}
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+
+                  {/* Decorative gradient line at bottom */}
+                  <div className="h-1.5 bg-gradient-to-r from-pink-500 via-rose-500 to-red-500"></div>
+                </div>
+              )}
+            </>
+          ) : (
+            <div className="text-center py-10 text-sm text-slate-500">
+              {yearRecords.length === 0
+                ? 'ยังไม่มีข้อมูลสำหรับแสดง Dashboard - กรุณากด "โหลดข้อมูลแสดงผล"'
+                : `ไม่มีข้อมูลสำหรับเดือน ${month} - กรุณาเลือกเดือนอื่นหรือเลือก "ทั้งปี"`
+              }
+            </div>
+          )}
+        </section>
+
+
+        {/* Monthly Data List with Edit Buttons */}
+        <section className="bg-white rounded-2xl shadow-sm p-5 border border-slate-100">
+          <div className="flex items-center gap-3 mb-4">
+            <div className="w-10 h-10 rounded-lg bg-amber-100 text-amber-600 flex items-center justify-center">
+              📋
+            </div>
+            <div>
+              <h3 className="text-base font-semibold text-slate-800">ข้อมูลรายเดือน - ปีงบประมาณ {fiscalYear}</h3>
+              <p className="text-xs text-slate-500">เลือกเดือนที่ต้องการแก้ไขข้อมูล</p>
+            </div>
+          </div>
+
+          {specialUnitRecords.length > 0 ? (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+              {MONTHS_TH.map((monthName, idx) => {
+                const record = specialUnitRecords.find(r => r.month === monthName);
+                const hasData = !!record;
+
+                return (
+                  <div
+                    key={monthName}
+                    className={`rounded-xl p-4 border transition-all ${hasData
+                      ? 'bg-gradient-to-br from-emerald-50 to-teal-50 border-emerald-200 hover:shadow-md'
+                      : 'bg-slate-50 border-slate-200'
+                      }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center gap-2">
+                        <span className={`w-2 h-2 rounded-full ${hasData ? 'bg-emerald-500' : 'bg-slate-300'}`}></span>
+                        <span className={`font-medium text-sm ${hasData ? 'text-emerald-800' : 'text-slate-600'}`}>
+                          {monthName}
+                        </span>
+                      </div>
+                      {hasData ? (
+                        <button
+                          onClick={() => handleEditFromSpecialUnitReport(record!)}
+                          className="px-3 py-1.5 bg-amber-500 hover:bg-amber-600 text-white text-xs font-semibold rounded-lg transition-colors flex items-center gap-1 shadow-sm"
+                        >
+                          ✏️ แก้ไข
+                        </button>
+                      ) : (
+                        <button
+                          onClick={() => {
+                            setMonth(monthName);
+                            setSpecialUnitActiveTab("form");
+                          }}
+                          className="px-3 py-1.5 bg-slate-200 hover:bg-slate-300 text-slate-600 text-xs font-semibold rounded-lg transition-colors flex items-center gap-1"
+                        >
+                          ➕ เพิ่ม
+                        </button>
+                      )}
+                    </div>
+                    {hasData && record && (
+                      <p className="text-[10px] text-emerald-600 mt-2">
+                        อัปเดต: {new Date(record.updatedAt).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', year: '2-digit' })}
+                      </p>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="text-center py-8 text-sm text-slate-500 bg-slate-50 rounded-xl">
+              <p className="mb-2">ยังไม่มีข้อมูลให้แสดง</p>
+              <p className="text-xs">กรุณากด "โหลดข้อมูลแสดงผล" เพื่อดึงข้อมูลจากระบบ</p>
+            </div>
+          )}
+        </section>
+
+        {/* Data Completeness Section */}
+        <section className="bg-white rounded-2xl shadow-sm p-5 border border-slate-100">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-base font-semibold text-slate-800">ตรวจสอบความครบถ้วนของข้อมูล</h3>
+              <p className="text-xs text-slate-500">ปีงบประมาณ {fiscalYear}</p>
+            </div>
+            <span className="text-sm text-slate-600">บันทึกแล้ว {monthsWithData} / 12 เดือน</span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            {/* Months with data */}
+            <div className="bg-emerald-50 rounded-xl p-4 border border-emerald-200">
+              <h4 className="text-sm font-semibold text-emerald-800 mb-3">เดือนที่มีข้อมูลครบ</h4>
+              <div className="flex flex-wrap gap-2">
+                {specialUnitRecords.length > 0 ? specialUnitRecords.map(rec => (
+                  <span key={rec.month} className="px-2.5 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-medium">
+                    {rec.month}
+                  </span>
+                )) : <span className="text-xs text-slate-500">ยังไม่มีข้อมูล</span>}
+              </div>
+            </div>
+
+            {/* Months missing data */}
+            <div className="bg-rose-50 rounded-xl p-4 border border-rose-200">
+              <h4 className="text-sm font-semibold text-rose-800 mb-3">เดือนที่ยังไม่ได้บันทึก</h4>
+              <div className="flex flex-wrap gap-2">
+                {monthsMissing.length > 0 ? monthsMissing.map(m => (
+                  <span key={m} className="px-2.5 py-1 bg-rose-100 text-rose-700 rounded-full text-xs font-medium">
+                    {m}
+                  </span>
+                )) : <span className="text-xs text-emerald-600 font-semibold">✅ ครบทุกเดือน</span>}
+              </div>
+            </div>
+          </div>
+
+          {specialUnitRecords.length === 0 && (
+            <div className="mt-4 text-center py-6 text-sm text-slate-500 bg-slate-50 rounded-xl">
+              ยังไม่มีข้อมูลให้แสดง กรุณาเลือกปี/เดือน แล้วกด "โหลดข้อมูลแสดงผล"
+            </div>
+          )}
+        </section>
+      </div>
+    );
+  }
+
+  function renderOPDReport() {
+    // Get OPD name
+    const opdDept = DEPARTMENTS.find(d => d.id === selectedDeptId);
+    const opdName = opdDept?.name || "OPD";
+
+    // CRITICAL: Filter yearRecords to show ONLY current department's data
+    // This prevents data contamination between OPD departments
+    const filteredRecords = yearRecords.filter(r => r.departmentId === selectedDeptId);
+
+    // Data completeness
+    const monthsWithData = filteredRecords.length;
+    const monthsMissing = MONTHS_TH.filter(m => !filteredRecords.find(r => r.month === m));
+
+    return (
+      <div className="space-y-4">
+        {/* Header */}
+        <section className="bg-gradient-to-r from-emerald-600 via-green-600 to-teal-500 rounded-2xl shadow-lg p-6 text-white">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-12 h-12 rounded-xl bg-white/20 flex items-center justify-center text-2xl">
+                🩺
+              </div>
+              <div>
+                <h2 className="text-xl font-bold">{opdName}</h2>
+                <p className="text-sm text-emerald-100">รายงานข้อมูลและสถิติ</p>
+              </div>
+            </div>
+
+            {/* Year Navigation Controls */}
+            <div className="flex items-center gap-3">
+              <div className="flex items-center gap-2">
+                <span className="text-emerald-100 text-sm font-medium">ปีงบประมาณ</span>
+
+                {/* Previous Year Button */}
+                <button
+                  onClick={() => {
+                    const currentIndex = FISCAL_YEARS.indexOf(fiscalYear);
+                    if (currentIndex > 0) {
+                      const prevYear = FISCAL_YEARS[currentIndex - 1];
+                      setFiscalYear(prevYear);
+                      handleLoadYear(prevYear);
+                    }
+                  }}
+                  disabled={FISCAL_YEARS.indexOf(fiscalYear) === 0}
+                  className="px-3 py-2 bg-white/20 hover:bg-white/30 disabled:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-all duration-200 flex items-center justify-center"
+                  title="ปีก่อนหน้า"
+                >
+                  <span className="text-lg">◀</span>
+                </button>
+
+                {/* Year Dropdown */}
+                <select
+                  className="bg-white/20 border-2 border-white/30 rounded-lg px-4 py-2 text-white text-base font-bold focus:outline-none focus:ring-2 focus:ring-white/50 hover:bg-white/30 transition-all cursor-pointer backdrop-blur-sm"
+                  value={fiscalYear}
+                  onChange={(e) => {
+                    const newYear = e.target.value;
+                    setFiscalYear(newYear);
+                    handleLoadYear(newYear);
+                  }}
+                  style={{
+                    backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='white'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E")`,
+                    backgroundRepeat: 'no-repeat',
+                    backgroundPosition: 'right 0.5rem center',
+                    backgroundSize: '1.5em 1.5em',
+                    paddingRight: '2.5rem'
+                  }}
+                >
+                  {FISCAL_YEARS.map(y => (
+                    <option key={y} value={y} className="bg-emerald-700 text-white">{y}</option>
+                  ))}
+                </select>
+
+                {/* Next Year Button */}
+                <button
+                  onClick={() => {
+                    const currentIndex = FISCAL_YEARS.indexOf(fiscalYear);
+                    if (currentIndex < FISCAL_YEARS.length - 1) {
+                      const nextYear = FISCAL_YEARS[currentIndex + 1];
+                      setFiscalYear(nextYear);
+                      handleLoadYear(nextYear);
+                    }
+                  }}
+                  disabled={FISCAL_YEARS.indexOf(fiscalYear) === FISCAL_YEARS.length - 1}
+                  className="px-3 py-2 bg-white/20 hover:bg-white/30 disabled:bg-white/10 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-all duration-200 flex items-center justify-center"
+                  title="ปีถัดไป"
+                >
+                  <span className="text-lg">▶</span>
+                </button>
+              </div>
+
+              {/* Reload Button */}
+              <button
+                onClick={() => handleLoadYear()}
+                className="px-4 py-2 bg-white/20 hover:bg-white/30 rounded-lg transition-all duration-200 flex items-center gap-2 text-sm font-medium"
+                title="โหลดข้อมูลใหม่"
+              >
+                <span>🔄</span>
+                <span>โหลดข้อมูล</span>
+              </button>
+            </div>
+          </div>
+        </section>
+
+        {/* Data Completeness */}
+        <section className="bg-white rounded-2xl shadow-sm p-5 border border-slate-100">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h3 className="text-base font-semibold text-slate-800">ตรวจสอบความครบถ้วนของข้อมูล</h3>
+              <p className="text-xs text-slate-500">ปีงบประมาณ {fiscalYear}</p>
+            </div>
+            <span className="text-sm text-slate-600">บันทึกแล้ว {monthsWithData} / 12 เดือน</span>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="bg-emerald-50 border border-emerald-100 rounded-xl p-4">
+              <p className="text-sm font-semibold text-emerald-800 mb-2">เดือนที่บันทึกแล้ว</p>
+              <div className="flex flex-wrap gap-2">
+                {filteredRecords.length > 0 ? filteredRecords.map(r => (
+                  <span key={r.month} className="px-2.5 py-1 bg-emerald-100 text-emerald-700 rounded-full text-xs font-medium">
+                    {r.month}
+                  </span>
+                )) : <span className="text-xs text-slate-500">ยังไม่มีข้อมูล</span>}
+              </div>
+            </div>
+
+            <div className="bg-rose-50 border border-rose-100 rounded-xl p-4">
+              <p className="text-sm font-semibold text-rose-800 mb-2">เดือนที่ยังไม่ได้บันทึก</p>
+              <div className="flex flex-wrap gap-2">
+                {monthsMissing.length > 0 ? monthsMissing.map(m => (
+                  <span key={m} className="px-2.5 py-1 bg-rose-100 text-rose-700 rounded-full text-xs font-medium">
+                    {m}
+                  </span>
+                )) : <span className="text-xs text-emerald-600 font-semibold">✅ ครบทุกเดือน</span>}
+              </div>
+            </div>
+          </div>
+
+          {filteredRecords.length === 0 && (
+            <div className="mt-4 text-center py-6 text-sm text-slate-500 bg-slate-50 rounded-xl">
+              ยังไม่มีข้อมูลให้แสดง กรุณาบันทึกข้อมูลในแท็บ "บันทึกข้อมูลตัวชี้วัด"
+            </div>
+          )}
+        </section>
+
+        {/* OPD Summary Stats Section with Month Filter */}
+        {filteredRecords.length > 0 && (
+          <section className="bg-white rounded-2xl shadow-sm p-5 border border-slate-100">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-3 mb-4">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center">
+                  📊
+                </div>
+                <div>
+                  <h3 className="text-base font-semibold text-slate-800">สรุปตัวชี้วัด OPD</h3>
+                  <p className="text-xs text-slate-500">
+                    {dashboardMonth === "ทั้งปี"
+                      ? `ข้อมูลรวมจาก ${filteredRecords.length} เดือนที่บันทึก • ปีงบประมาณ ${fiscalYear}`
+                      : `ข้อมูลเดือน ${dashboardMonth} • ปีงบประมาณ ${fiscalYear}`
+                    }
+                  </p>
+                </div>
+              </div>
+              <div className="flex items-center gap-2">
+                <select
+                  className="border border-slate-200 rounded-lg px-3 py-2 text-sm"
+                  value={fiscalYear}
+                  onChange={(e) => {
+                    const newYear = e.target.value;
+                    setFiscalYear(newYear);
+                    // Reload data when fiscal year changes - pass the new year directly
+                    handleLoadYear(newYear);
+                  }}
+                >
+                  {FISCAL_YEARS.map(y => (
+                    <option key={y} value={y}>{y}</option>
+                  ))}
+                </select>
+                <select
+                  className="border border-slate-200 rounded-lg px-3 py-2 text-sm"
+                  value={dashboardMonth}
+                  onChange={(e) => setDashboardMonth(e.target.value)}
+                >
+                  <option value="ทั้งปี">ดูภาพรวมทั้งปี</option>
+                  {MONTHS_TH.filter(m => filteredRecords.some(r => r.month === m)).map(m => (
+                    <option key={m} value={m}>{m}</option>
+                  ))}
+                </select>
+              </div>
+            </div>
+
+            {(() => {
+              // Filter records by selected month
+              const displayRecords = dashboardMonth === "ทั้งปี"
+                ? filteredRecords
+                : filteredRecords.filter(r => r.month === dashboardMonth);
+
+              if (displayRecords.length === 0) {
+                return (
+                  <div className="text-center py-6 text-sm text-slate-500 bg-slate-50 rounded-xl">
+                    ไม่มีข้อมูลสำหรับเดือน {dashboardMonth}
+                  </div>
+                );
+              }
+
+              // Calculate stats from displayRecords
+              const opdWrongPatientId = displayRecords.reduce((sum, r) => sum + parseFloat(r.data.opd_1_1 || "0"), 0);
+              const opdWrongTreatment = displayRecords.reduce((sum, r) => sum + parseFloat(r.data.opd_1_2 || "0"), 0);
+              const opdUnexpectedDeath = displayRecords.reduce((sum, r) => sum + parseFloat(r.data.opd_2 || "0"), 0);
+              const opdStaffAccidents = displayRecords.reduce((sum, r) => sum + parseFloat(r.data.opd_3 || "0"), 0);
+              const totalCPR = displayRecords.reduce((sum, r) => sum + parseFloat(r.data.opd_cpr_2 || "0"), 0);
+              const successCPR = displayRecords.reduce((sum, r) => sum + parseFloat(r.data.opd_cpr_3 || "0"), 0);
+              const cprRate = totalCPR > 0 ? ((successCPR / totalCPR) * 100).toFixed(1) : "0.0";
+              const isGoodCPR = parseFloat(cprRate) >= 80 || totalCPR === 0;
+
+              return (
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-3">
+                  {/* Wrong Patient ID */}
+                  <div className={`rounded-xl p-4 ${opdWrongPatientId > 0 ? 'bg-amber-50 border-2 border-amber-400' : 'bg-gray-50 border border-gray-200'}`}>
+                    <p className={`text-[10px] font-semibold uppercase mb-1 ${opdWrongPatientId > 0 ? 'text-amber-700' : 'text-gray-600'}`}>ระบุตัว ผป.ผิด</p>
+                    <div className="flex items-center justify-between">
+                      <p className={`text-2xl font-bold ${opdWrongPatientId > 0 ? 'text-amber-600' : 'text-gray-800'}`}>{opdWrongPatientId}</p>
+                      {opdWrongPatientId > 0 && <span className="text-amber-500 text-lg">⚠️</span>}
+                    </div>
+                    <p className="text-[10px] text-gray-500">ครั้ง</p>
+                  </div>
+
+                  {/* Wrong Treatment */}
+                  <div className={`rounded-xl p-4 ${opdWrongTreatment > 0 ? 'bg-rose-50 border-2 border-rose-400' : 'bg-gray-50 border border-gray-200'}`}>
+                    <p className={`text-[10px] font-semibold uppercase mb-1 ${opdWrongTreatment > 0 ? 'text-rose-700' : 'text-gray-600'}`}>รักษาผิดคน</p>
+                    <div className="flex items-center justify-between">
+                      <p className={`text-2xl font-bold ${opdWrongTreatment > 0 ? 'text-rose-600' : 'text-gray-800'}`}>{opdWrongTreatment}</p>
+                      {opdWrongTreatment > 0 && <span className="text-rose-500 text-lg">⚠️</span>}
+                    </div>
+                    <p className="text-[10px] text-gray-500">ครั้ง</p>
+                  </div>
+
+                  {/* Unexpected Death */}
+                  <div className={`rounded-xl p-4 ${opdUnexpectedDeath > 0 ? 'bg-slate-100 border-2 border-slate-400' : 'bg-gray-50 border border-gray-200'}`}>
+                    <p className={`text-[10px] font-semibold uppercase mb-1 ${opdUnexpectedDeath > 0 ? 'text-slate-700' : 'text-gray-600'}`}>ตายไม่คาดคิด</p>
+                    <div className="flex items-center justify-between">
+                      <p className={`text-2xl font-bold ${opdUnexpectedDeath > 0 ? 'text-slate-600' : 'text-gray-800'}`}>{opdUnexpectedDeath}</p>
+                      {opdUnexpectedDeath > 0 && <span className="text-slate-500 text-lg">💀</span>}
+                    </div>
+                    <p className="text-[10px] text-gray-500">ครั้ง</p>
+                  </div>
+
+                  {/* Staff Accidents */}
+                  <div className={`rounded-xl p-4 ${opdStaffAccidents > 0 ? 'bg-purple-50 border-2 border-purple-400' : 'bg-gray-50 border border-gray-200'}`}>
+                    <p className={`text-[10px] font-semibold uppercase mb-1 ${opdStaffAccidents > 0 ? 'text-purple-700' : 'text-gray-600'}`}>อุบัติเหตุบุคลากร</p>
+                    <div className="flex items-center justify-between">
+                      <p className={`text-2xl font-bold ${opdStaffAccidents > 0 ? 'text-purple-600' : 'text-gray-800'}`}>{opdStaffAccidents}</p>
+                      {opdStaffAccidents > 0 && <span className="text-purple-500 text-lg">⚠️</span>}
+                    </div>
+                    <p className="text-[10px] text-gray-500">ครั้ง</p>
+                  </div>
+
+                  {/* CPR Success Rate */}
+                  <div className={`rounded-xl p-4 ${isGoodCPR ? 'bg-emerald-50 border-2 border-emerald-400' : 'bg-amber-50 border-2 border-amber-400'}`}>
+                    <p className={`text-[10px] font-semibold uppercase mb-1 ${isGoodCPR ? 'text-emerald-700' : 'text-amber-700'}`}>CPR Success</p>
+                    <div className="flex items-center justify-between">
+                      <p className={`text-2xl font-bold ${isGoodCPR ? 'text-emerald-600' : 'text-amber-600'}`}>{cprRate}%</p>
+                      <span className={`${isGoodCPR ? 'text-emerald-500' : 'text-amber-500'} text-lg`}>{isGoodCPR ? '✅' : '⚠️'}</span>
+                    </div>
+                    <p className="text-[10px] text-gray-500">{successCPR}/{totalCPR} ครั้ง</p>
+                  </div>
+                </div>
+              );
+            })()}
+          </section>
+        )}
+      </div>
+    );
+  }
+
+
   /* ------------------------------- UI: Login ------------------------------- */
 
   if (!isLoggedIn) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-purple-800 via-purple-600 to-indigo-400 flex items-center justify-center px-4 py-10">
-        <div className="w-full max-w-lg">
-          <div className="relative bg-white/90 backdrop-blur rounded-3xl shadow-2xl overflow-visible">
-            <div className="absolute -top-10 left-1/2 -translate-x-1/2 flex items-center justify-center w-20 h-20 rounded-full bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 text-white text-3xl shadow-lg">
-              🏥
+      <div className={`min-h-screen bg-gradient-to-br from-purple-900 via-purple-700 to-indigo-500 flex items-center justify-center px-4 py-10 relative ${isTransitioning ? 'animate-page-exit' : ''}`}>
+        {/* Animated Background Shapes */}
+        <div className="absolute inset-0 overflow-hidden pointer-events-none">
+          {/* Vibrant Colorful Blobs matching reference */}
+          <div className="absolute top-[5%] -left-[10%] w-[500px] h-[500px] bg-purple-600 rounded-full mix-blend-overlay filter blur-[100px] opacity-40 animate-pulse"></div>
+          <div className="absolute top-[10%] -right-[10%] w-[500px] h-[500px] bg-cyan-600 rounded-full mix-blend-overlay filter blur-[100px] opacity-40 animate-pulse" style={{ animationDelay: '1s' }}></div>
+          <div className="absolute -bottom-[20%] left-[20%] w-[600px] h-[600px] bg-pink-600 rounded-full mix-blend-overlay filter blur-[120px] opacity-40 animate-pulse" style={{ animationDelay: '2s' }}></div>
+          <div className="absolute bottom-[10%] -right-[10%] w-[400px] h-[400px] bg-blue-600 rounded-full mix-blend-overlay filter blur-[100px] opacity-40 animate-pulse" style={{ animationDelay: '3s' }}></div>
+        </div>
+
+        {/* Main 2-Column Card */}
+        <div className="w-full max-w-5xl bg-white/10 backdrop-blur-[20px] rounded-[40px] shadow-2xl overflow-hidden grid md:grid-cols-2 relative z-10 border border-white/20 animate-fade-in-up">
+
+          {/* LEFT PANEL: Logo & Branding */}
+          <div className="relative flex flex-col items-center justify-center p-10 md:p-14 bg-white/10 border-r border-white/10 overflow-hidden">
+
+            {/* Logo Container */}
+            <div className="relative z-10 mb-8 animate-float-logo">
+              <div className="absolute inset-x-0 top-1/2 -translate-y-1/2 h-40 bg-white/30 blur-3xl rounded-full pointer-events-none"></div>
+              <img
+                src="/login-logo-final.png"
+                alt="NBH KPI Quality"
+                className="w-64 md:w-80 object-contain drop-shadow-2xl relative z-10 transition-transform duration-500 hover:scale-105"
+              />
             </div>
-            <div className="pt-14 px-8 pb-8 space-y-6">
-              <div className="text-center space-y-1">
-                <h1 className="text-2xl font-bold text-slate-800">ระบบบันทึกข้อมูล QA</h1>
-                <p className="text-sm text-slate-500">โรงพยาบาลหนองบัวลำภู</p>
+
+            <div className="relative z-10 text-center space-y-3">
+              <h1 className="text-2xl md:text-3xl font-bold text-white drop-shadow-lg leading-tight tracking-tight">
+                ระบบลงบันทึก<br />ตัวชี้วัดทางการพยาบาล
+              </h1>
+              <div className="h-1.5 w-24 bg-gradient-to-r from-cyan-300 to-blue-400 rounded-full mx-auto my-4 shadow-lg"></div>
+              <p className="text-white/90 font-medium text-lg drop-shadow-md">โรงพยาบาลหนองบัวลำภู</p>
+            </div>
+          </div>
+
+          {/* RIGHT PANEL: Login Form */}
+          <div className="relative flex flex-col justify-center p-8 md:p-12 bg-indigo-900/40 backdrop-blur-xl">
+            <div className="max-w-md mx-auto w-full space-y-8">
+
+              <div className="text-center md:text-left">
+                <h2 className="text-4xl lg:text-5xl font-bold text-white mb-2 drop-shadow-[0_4px_4px_rgba(0,0,0,0.5)] tracking-wide">เข้าสู่ระบบ</h2>
+                <p className="text-indigo-100 text-sm font-medium drop-shadow-sm">กรุณาเลือกบทบาทของท่าน</p>
               </div>
 
-              <div className="grid grid-cols-2 bg-slate-100 rounded-xl p-1 text-sm font-medium">
-                <button
-                  className={`flex items-center justify-center gap-2 py-2 rounded-lg transition ${
-                    role === "user"
-                      ? "bg-purple-600 text-white shadow"
-                      : "bg-white text-slate-700 hover:bg-slate-50"
-                  }`}
-                  onClick={() => {
-                    setRole("user");
-                    setPassword("");
-                  }}
-                >
-                  <span>👤</span>
-                  ผู้ใช้งาน
-                </button>
-                <button
-                  className={`flex items-center justify-center gap-2 py-2 rounded-lg transition ${
-                    role === "admin"
-                      ? "bg-purple-600 text-white shadow"
-                      : "bg-white text-slate-700 hover:bg-slate-50"
-                  }`}
-                  onClick={() => {
-                    setRole("admin");
-                    setSelectedDeptId("");
-                    setPassword("");
-                  }}
-                >
-                  <span>🛡️</span>
-                  ผู้ดูแลระบบ
-                </button>
+              {/* Role Selection Grid */}
+              <div className="grid grid-cols-2 gap-3">
+                {[
+                  { id: 'user', icon: '🛏️', label: 'IPD' },
+                  { id: 'special_unit', icon: '🖥️', label: 'หน่วยงานพิเศษ' },
+                  { id: 'opd', icon: '🩺', label: 'OPD' },
+                  { id: 'admin', icon: '🔐', label: 'ผู้ดูแลระบบ' }
+                ].map((r) => (
+                  <button
+                    key={r.id}
+                    onClick={() => {
+                      setRole(r.id as any);
+                      setSelectedDeptId("");
+                      setPassword("");
+                    }}
+                    className={`flex items-center justify-center gap-2 p-3 rounded-xl border transition-all duration-300 ${role === r.id
+                      ? 'bg-gradient-to-r from-blue-500 to-indigo-600 border-transparent text-white shadow-lg ring-2 ring-blue-300/30 transform scale-105'
+                      : 'bg-white/5 border-white/10 text-white/70 hover:bg-white/10 hover:border-white/30'
+                      }`}
+                  >
+                    <span className="text-lg">{r.icon}</span>
+                    <span className="text-sm font-medium">{r.label}</span>
+                  </button>
+                ))}
               </div>
 
+              {/* Alert */}
               {alert && (
-                <div
-                  className={`border-l-4 p-3 rounded text-xs ${
-                    alert.type === "success"
-                      ? "bg-emerald-50 border-emerald-500 text-emerald-800"
-                      : alert.type === "warning"
-                      ? "bg-amber-50 border-amber-500 text-amber-800"
-                      : "bg-rose-50 border-rose-500 text-rose-800"
-                  }`}
-                >
+                <div className={`p-3 rounded-lg text-sm flex items-center gap-2 animate-fade-in-up ${alert.type === 'success' ? 'bg-emerald-500/20 text-emerald-200 border border-emerald-500/30' :
+                  'bg-rose-500/20 text-rose-200 border border-rose-500/30'
+                  }`}>
+                  <span>{alert.type === 'success' ? '✅' : '⚠️'}</span>
                   {alert.message}
                 </div>
               )}
 
-              <form className="space-y-4" onSubmit={handleLogin}>
-                {role === "user" && (
-                  <div className="space-y-1">
-                    <label className="flex items-center gap-2 text-xs font-semibold text-slate-700">
-                      <span>🏥</span>
-                      เลือกแผนก
-                    </label>
-                    <select
-                      className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-                      value={selectedDeptId}
-                      onChange={e => setSelectedDeptId(e.target.value)}
-                    >
-                      <option value="">-- เลือกแผนก --</option>
-                      {DEPARTMENTS.filter(d => d.id !== "ADMIN").map(d => (
-                        <option key={d.id} value={d.id}>
-                          {d.name}
-                        </option>
-                      ))}
-                    </select>
+              {/* Form */}
+              <form onSubmit={handleLogin} className="space-y-5 animate-fade-in-up" style={{ animationDelay: '100ms' }}>
+                {(role === "user" || role === "special_unit" || role === "opd") && (
+                  <div className="space-y-2">
+                    <label className="text-xs font-semibold text-indigo-200 ml-1 uppercase tracking-wider">เลือกแผนก</label>
+                    <div className="relative group">
+                      <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                        <span className="text-indigo-300">🏥</span>
+                      </div>
+                      <select
+                        className="w-full bg-indigo-950/50 border border-indigo-700/50 rounded-xl py-3 pl-10 pr-4 text-white text-sm focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-transparent transition-all placeholder-indigo-400/50 hover:bg-indigo-900/60"
+                        value={selectedDeptId}
+                        onChange={e => setSelectedDeptId(e.target.value)}
+                      >
+                        <option value="" className="bg-indigo-900 text-slate-300">-- เลือกแผนก --</option>
+                        {DEPARTMENTS.filter(d => {
+                          if (role === "user") return d.id !== "ADMIN" && !d.id.startsWith("SPECIAL") && !d.id.startsWith("OPD");
+                          if (role === "special_unit") return d.id.startsWith("SPECIAL");
+                          if (role === "opd") return d.id.startsWith("OPD");
+                          return false;
+                        }).map(d => (
+                          <option key={d.id} value={d.id} className="bg-indigo-900">
+                            {d.name}
+                          </option>
+                        ))}
+                      </select>
+                    </div>
                   </div>
                 )}
 
-                <div className="space-y-1">
-                  <label className="flex items-center gap-2 text-xs font-semibold text-slate-700">
-                    <span>🔒</span>
-                    รหัสผ่าน {role === "admin" ? "(Admin)" : ""}
-                  </label>
-                  <input
-                    type="password"
-                    className="w-full border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-purple-500"
-                    value={password}
-                    onChange={e => setPassword(e.target.value)}
-                    placeholder={role === "admin" ? "admin@nbl2568" : "รหัสผ่านแผนก"}
-                  />
+                <div className="space-y-2">
+                  <label className="text-xs font-semibold text-indigo-200 ml-1 uppercase tracking-wider">รหัสผ่าน</label>
+                  <div className="relative group">
+                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                      <span className="text-indigo-300">🔒</span>
+                    </div>
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      className="w-full bg-indigo-950/50 border border-indigo-700/50 rounded-xl py-3 pl-10 pr-10 text-white text-sm focus:outline-none focus:ring-2 focus:ring-cyan-400 focus:border-transparent transition-all placeholder-indigo-400/50 hover:bg-indigo-900/60"
+                      value={password}
+                      onChange={e => setPassword(e.target.value)}
+                      placeholder={role === "admin" ? "admin@xxxxxxx" : "••••••••"}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowPassword(!showPassword)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-indigo-400 hover:text-white transition"
+                    >
+                      {showPassword ? (
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13.875 18.825A10.05 10.05 0 0112 19c-4.478 0-8.268-2.943-9.543-7a9.97 9.97 0 011.563-3.029m5.858.908a3 3 0 114.243 4.243M9.878 9.878l4.242 4.242M9.88 9.88l-3.29-3.29m7.532 7.532l3.29 3.29M3 3l3.59 3.59m0 0A9.953 9.953 0 0112 5c4.478 0 8.268 2.943 9.543 7a10.025 10.025 0 01-4.132 5.411m0 0L21 21" /></svg>
+                      ) : (
+                        <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" /><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" /></svg>
+                      )}
+                    </button>
+                  </div>
                 </div>
 
                 <button
                   type="submit"
-                  className="w-full py-3 rounded-xl bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-500 text-white text-sm font-semibold shadow-lg hover:shadow-xl hover:-translate-y-0.5 transition flex items-center justify-center gap-2"
+                  disabled={isLoggingIn}
+                  className={`w-full py-4 rounded-xl bg-gradient-to-r from-cyan-500 to-blue-600 text-white font-bold shadow-lg shadow-cyan-500/30 flex items-center justify-center gap-2 transition-all duration-300 hover:shadow-cyan-500/50 hover:-translate-y-1 ${isLoggingIn ? 'opacity-80 cursor-wait' : ''
+                    }`}
                 >
-                  <span>➜</span>
-                  เข้าสู่ระบบ
+                  {isLoggingIn ? (
+                    <>
+                      <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin"></div>
+                      <span>กำลังเข้าสู่ระบบ...</span>
+                    </>
+                  ) : (
+                    <>
+                      <span>เข้าสู่ระบบ</span>
+                      <span className="text-xl">➜</span>
+                    </>
+                  )}
                 </button>
               </form>
             </div>
           </div>
+        </div>
+
+        {/* Developer Credit - Slide In & Fade Out */}
+        <div className="absolute bottom-6 left-0 right-0 text-center pointer-events-none z-20 animate-credit">
+          <p className="text-[10px] md:text-xs text-white/90 font-medium tracking-wide text-glow">
+            © 2568 ระบบบันทึกข้อมูลตัวชี้วัดทางการพยาบาล โรงพยาบาลหนองบัวลำภู <span className="hidden md:inline mx-2">-</span> <br className="md:hidden" />
+            Developed by ปริญญา แก้วสุโพธิ์ พยาบาลวิชาชีพชำนาญการ Tel:062-880-4373
+          </p>
         </div>
       </div>
     );
@@ -1840,107 +4671,161 @@ export default function HomePage() {
   /* ------------------------------ UI: Main Page ----------------------------- */
 
   return (
-    <div className="min-h-screen bg-slate-100 flex flex-col">
-      <header className="bg-gradient-to-r from-purple-700 via-indigo-600 to-blue-500 text-white shadow-md">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
-          <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl bg-white/20 flex items-center justify-center text-xl shadow-inner">
-              📊
+    <div className={`min-h-screen bg-slate-100 flex flex-col ${showMainPage ? 'animate-page-enter' : ''}`}>
+      <header className="bg-white shadow-sm relative z-20">
+        {/* Top Utility Bar */}
+        <div className="bg-slate-900 text-slate-300 text-[11px] py-1.5">
+          <div className="max-w-7xl mx-auto px-4 flex justify-between items-center">
+            <div className="flex items-center gap-2">
+              <span>🏥</span>
+              <span>โรงพยาบาลหนองบัวลำภู</span>
             </div>
-            <div>
-              <h1 className="text-base md:text-lg font-semibold leading-tight">ระบบบันทึกข้อมูล QA</h1>
-              <p className="text-[11px] md:text-xs text-indigo-100">โรงพยาบาลหนองบัวลำภู</p>
-            </div>
-          </div>
-          <div className="flex items-center gap-3">
-            <div className="text-right text-sm">
-              <div className="opacity-80">{role === "admin" ? "ผู้ดูแลระบบ" : "แผนก"}</div>
-              <div className="font-semibold">
-                {role === "admin" ? "Admin" : currentDept?.name}
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-1">
+                <span>{role === "admin" ? "ผู้ดูแลระบบ" : "แผนก"}:</span>
+                <span className="text-white font-medium">{role === "admin" ? "Admin" : currentDept?.name}</span>
               </div>
+              <div className="h-3 w-px bg-slate-700"></div>
+              <button
+                onClick={handleLogout}
+                className="text-red-300 hover:text-red-100 hover:underline transition-colors flex items-center gap-1"
+              >
+                <span>ออกจากระบบ</span>
+                <span className="text-xs">➜</span>
+              </button>
             </div>
-            <button
-              onClick={handleLogout}
-              className="px-3 py-1.5 rounded-full bg-white/20 hover:bg-white/30 text-[11px] font-medium"
-            >
-              ออกจากระบบ
-            </button>
           </div>
         </div>
-        <nav className="bg-white text-slate-700 border-b border-slate-200">
-          <div className="max-w-7xl mx-auto px-4 flex gap-6 text-sm font-semibold">
-            {role === "user" ? (
-              <>
-                <button
-                  className={`relative py-3 transition ${
-                    activeTab === "form"
-                      ? "text-purple-600"
-                      : "text-slate-500 hover:text-slate-800"
-                  }`}
-                  onClick={() => setActiveTab("form")}
-                >
-                  บันทึกข้อมูล
-                  {activeTab === "form" && <span className="absolute inset-x-0 -bottom-px h-1 bg-purple-500 rounded-full" />}
-                </button>
-                <button
-                  className={`relative py-3 transition ${
-                    activeTab === "table"
-                      ? "text-purple-600"
-                      : "text-slate-500 hover:text-slate-800"
-                  }`}
-                  onClick={() => setActiveTab("table")}
-                >
-                  ตารางแสดงข้อมูล
-                  {activeTab === "table" && <span className="absolute inset-x-0 -bottom-px h-1 bg-purple-500 rounded-full" />}
-                </button>
-              </>
-            ) : (
-              <button
-                className="relative py-3 text-purple-600"
-                onClick={() => setActiveTab("admin")}
-              >
-                Dashboard
-                <span className="absolute inset-x-0 -bottom-px h-1 bg-purple-500 rounded-full" />
-              </button>
-            )}
+
+        {/* Brand Banner */}
+        <div className="bg-gradient-to-b from-slate-50 to-white border-b border-slate-100">
+          <div className="max-w-7xl mx-auto px-4 py-4 md:py-6">
+            <div className="relative rounded-2xl overflow-hidden shadow-lg shadow-indigo-500/10 group bg-white max-w-6xl mx-auto">
+              <img
+                src="/nbh-banner.png"
+                alt="NBH KPI Quality System"
+                className="w-full h-auto object-cover transform transition-transform duration-700 group-hover:scale-[1.005]"
+              />
+              <div className="absolute inset-0 ring-1 ring-inset ring-black/5 rounded-2xl pointer-events-none"></div>
+            </div>
           </div>
-        </nav>
+        </div>
       </header>
+      <nav className="bg-white text-slate-700 border-b border-slate-200">
+        <div className="max-w-7xl mx-auto px-4 flex gap-6 text-sm font-semibold">
+          {role === "user" ? (
+            <>
+              <button
+                className={`relative py-3 transition ${activeTab === "form"
+                  ? "text-purple-600"
+                  : "text-slate-500 hover:text-slate-800"
+                  }`}
+                onClick={() => setActiveTab("form")}
+              >
+                บันทึกข้อมูล
+                {activeTab === "form" && <span className="absolute inset-x-0 -bottom-px h-1 bg-purple-500 rounded-full" />}
+              </button>
+              <button
+                className={`relative py-3 transition ${activeTab === "table"
+                  ? "text-purple-600"
+                  : "text-slate-500 hover:text-slate-800"
+                  }`}
+                onClick={() => setActiveTab("table")}
+              >
+                ตารางแสดงข้อมูล
+                {activeTab === "table" && <span className="absolute inset-x-0 -bottom-px h-1 bg-purple-500 rounded-full" />}
+              </button>
+            </>
+          ) : role === "special_unit" ? (
+            <>
+              <button
+                className={`relative py-3 transition ${specialUnitActiveTab === "form"
+                  ? "text-purple-600"
+                  : "text-slate-500 hover:text-slate-800"
+                  }`}
+                onClick={() => setSpecialUnitActiveTab("form")}
+              >
+                บันทึกข้อมูลตัวชี้วัด
+                {specialUnitActiveTab === "form" && <span className="absolute inset-x-0 -bottom-px h-1 bg-purple-500 rounded-full" />}
+              </button>
+              <button
+                className={`relative py-3 transition ${specialUnitActiveTab === "table"
+                  ? "text-purple-600"
+                  : "text-slate-500 hover:text-slate-800"
+                  }`}
+                onClick={() => setSpecialUnitActiveTab("table")}
+              >
+                รายงานข้อมูล
+                {specialUnitActiveTab === "table" && <span className="absolute inset-x-0 -bottom-px h-1 bg-purple-500 rounded-full" />}
+              </button>
+            </>
+          ) : role === "opd" ? (
+            <>
+              <button
+                className={`relative py-3 transition ${specialUnitActiveTab === "form"
+                  ? "text-emerald-600"
+                  : "text-slate-500 hover:text-slate-800"
+                  }`}
+                onClick={() => setSpecialUnitActiveTab("form")}
+              >
+                บันทึกข้อมูลตัวชี้วัด
+                {specialUnitActiveTab === "form" && <span className="absolute inset-x-0 -bottom-px h-1 bg-emerald-500 rounded-full" />}
+              </button>
+              <button
+                className={`relative py-3 transition ${specialUnitActiveTab === "table"
+                  ? "text-emerald-600"
+                  : "text-slate-500 hover:text-slate-800"
+                  }`}
+                onClick={() => setSpecialUnitActiveTab("table")}
+              >
+                รายงานข้อมูล
+                {specialUnitActiveTab === "table" && <span className="absolute inset-x-0 -bottom-px h-1 bg-emerald-500 rounded-full" />}
+              </button>
+            </>
+          ) : (
+            <button
+              className="relative py-3 text-purple-600"
+              onClick={() => setActiveTab("admin")}
+            >
+              Dashboard
+              <span className="absolute inset-x-0 -bottom-px h-1 bg-purple-500 rounded-full" />
+            </button>
+          )}
+        </div>
+      </nav>
 
       <main className="flex-1 max-w-7xl mx-auto px-4 py-6 space-y-5 w-full">
         {role === "admin" ? (
-          <div className="space-y-4">
-            <section className="bg-white rounded-2xl shadow-sm p-5 border border-slate-100">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h2 className="text-lg font-semibold text-slate-800">Admin Dashboard</h2>
-                  <p className="text-sm text-slate-500">ภาพรวมข้อมูล QA ทั้งหมด</p>
-                </div>
-                <div className="flex items-center gap-3">
-                  <select
-                    className="border border-slate-200 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
-                    value={adminSelectedYear}
-                    onChange={e => {
-                      setAdminSelectedYear(e.target.value);
-                      loadAllDepartmentsData();
-                    }}
-                  >
-                    {FISCAL_YEARS.map(y => (
-                      <option key={y} value={y}>{y}</option>
-                    ))}
-                  </select>
-                  <button
-                    onClick={loadAllDepartmentsData}
-                    className="px-4 py-2 rounded-lg bg-indigo-600 text-white text-sm font-medium hover:bg-indigo-700"
-                  >
-                    🔄 รีเฟรช
-                  </button>
-                </div>
-              </div>
-            </section>
-
-            {renderAdminDashboard()}
-          </div>
+          <AdminPanel
+            fieldLabels={FIELD_LABELS}
+            computedFields={COMPUTED_FIELDS}
+            computeFields={(data, deptId) => {
+              const month = "ตุลาคม";
+              const year = adminSelectedYear;
+              return computeFields(data as QAFields, year, month) as Record<string, string>;
+            }}
+            currentUser={{
+              name: 'ผู้ดูแลระบบโรงพยาบาลหนองบัวลำภู',
+              email: 'admin@nongbualamphu.go.th',
+              role: 'Administrator'
+            }}
+            initialFiscalYear={adminSelectedYear}
+            onLogout={() => {
+              setShowMainPage(false);
+              setRole("user");
+              setSelectedDeptId("");
+              Swal.fire({
+                icon: 'success',
+                title: 'ออกจากระบบสำเร็จ',
+                timer: 1500,
+                showConfirmButton: false,
+              });
+            }}
+          />
+        ) : role === "special_unit" && specialUnitActiveTab === "table" ? (
+          renderSpecialUnitReport()
+        ) : role === "opd" && specialUnitActiveTab === "table" ? (
+          renderOPDReport()
         ) : activeTab === "table" ? (
           <div className="space-y-4">
             <section className="bg-white rounded-2xl shadow-sm p-5 border border-slate-100 space-y-4">
@@ -1977,6 +4862,7 @@ export default function HomePage() {
                     value={month}
                     onChange={e => setMonth(e.target.value)}
                   >
+                    <option value="ทั้งปี">ทั้งปี (ภาพรวม)</option>
                     {MONTHS_TH.map(m => (
                       <option key={m} value={m}>
                         {m}
@@ -1994,7 +4880,10 @@ export default function HomePage() {
                   </button>
                   <button
                     type="button"
-                    onClick={handleLoadYear}
+                    onClick={() => {
+                      handleLoadYear();
+                      setFields({});
+                    }}
                     className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-slate-100 text-slate-700 text-sm font-medium hover:bg-slate-200"
                   >
                     🔄 อัปเดต
@@ -2004,44 +4893,176 @@ export default function HomePage() {
               {loading && <p className="text-[11px] text-slate-500">กำลังดำเนินการ...</p>}
             </section>
 
-            {/* Dashboard Analytics Section */}
-            <section className="bg-white rounded-2xl shadow-sm p-5 border border-slate-100">
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-3">
+            {/* IPD Summary Stats Cards */}
+            {yearRecords.length > 0 && (
+              <section className="bg-white rounded-2xl shadow-sm p-5 border border-slate-100">
+                <div className="flex items-center gap-3 mb-4">
                   <div className="w-10 h-10 rounded-lg bg-purple-100 text-purple-600 flex items-center justify-center">
-                    📊
+                    📈
                   </div>
                   <div>
                     <h3 className="text-base font-semibold text-slate-800">Dashboard Analytics</h3>
                     <p className="text-xs text-slate-500">
-                      วิเคราะห์ข้อมูลเชิงลึกด้วยกราฟและแผนภูมิ
+                      {month === "ทั้งปี"
+                        ? `วิเคราะห์ข้อมูลภาพรวมทั้งปี • ปีงบประมาณ ${fiscalYear}`
+                        : `วิเคราะห์ข้อมูลเดือน ${month} • ปีงบประมาณ ${fiscalYear}`
+                      }
                     </p>
                   </div>
                 </div>
-                <select
-                  className="border border-slate-200 rounded-lg px-3 py-2 text-sm"
-                  value={dashboardMonth}
-                  onChange={(e) => setDashboardMonth(e.target.value)}
-                >
-                  <option value="ทั้งปี">ดูภาพรวมทั้งปี</option>
-                  {MONTHS_TH.map(m => (
-                    <option key={m} value={m}>{m}</option>
-                  ))}
-                </select>
-              </div>
-              
-              {yearRecords.length > 0 ? (
-                <DashboardAnalytics 
-                  data={generateDashboardData(yearRecords, dashboardMonth)} 
-                  isAdmin={false}
-                  selectedMonth={dashboardMonth}
-                />
-              ) : (
-                <div className="text-center py-10 text-sm text-slate-500">
-                  ยังไม่มีข้อมูลสำหรับแสดง Dashboard
+                <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
+                  {/* Productivity */}
+                  <div className="bg-gradient-to-br from-emerald-50 to-teal-50 rounded-xl p-4 border border-emerald-100">
+                    <p className="text-[10px] font-semibold text-emerald-700 uppercase mb-1">Productivity</p>
+                    <p className="text-xl font-bold text-emerald-600">{analytics.averageProductivity}</p>
+                    <p className="text-[10px] text-emerald-600">เป้าหมาย ≥80%</p>
+                  </div>
+                  {/* LOS */}
+                  <div className="bg-gradient-to-br from-amber-50 to-orange-50 rounded-xl p-4 border border-amber-100">
+                    <p className="text-[10px] font-semibold text-amber-700 uppercase mb-1">LOS เฉลี่ย</p>
+                    <p className="text-xl font-bold text-amber-600">{analytics.averageLOS}</p>
+                    <p className="text-[10px] text-amber-600">วัน</p>
+                  </div>
+                  {/* Readmission Rate */}
+                  <div className="bg-gradient-to-br from-cyan-50 to-blue-50 rounded-xl p-4 border border-cyan-100">
+                    <p className="text-[10px] font-semibold text-cyan-700 uppercase mb-1">Readmission</p>
+                    <p className="text-xl font-bold text-cyan-600">{analytics.ipdReadmissionRate || '0.00'}%</p>
+                    <p className="text-[10px] text-cyan-600">กลับรักษาซ้ำ</p>
+                  </div>
+                  {/* Wrong Patient ID */}
+                  <div className="bg-gradient-to-br from-orange-50 to-amber-50 rounded-xl p-4 border border-orange-100">
+                    <p className="text-[10px] font-semibold text-orange-700 uppercase mb-1">ระบุตัว ผป.ผิด</p>
+                    <p className="text-xl font-bold text-orange-600">{analytics.ipdWrongPatientId || 0}</p>
+                    <p className="text-[10px] text-orange-600">ครั้ง</p>
+                  </div>
+                  {/* Wrong Treatment */}
+                  <div className="bg-gradient-to-br from-rose-50 to-pink-50 rounded-xl p-4 border border-rose-100">
+                    <p className="text-[10px] font-semibold text-rose-700 uppercase mb-1">รักษาผิดคน</p>
+                    <p className="text-xl font-bold text-rose-600">{analytics.ipdWrongTreatment || 0}</p>
+                    <p className="text-[10px] text-rose-600">ครั้ง</p>
+                  </div>
+                  {/* Unexpected Death */}
+                  <div className="bg-gradient-to-br from-slate-50 to-gray-50 rounded-xl p-4 border border-slate-200">
+                    <p className="text-[10px] font-semibold text-slate-700 uppercase mb-1">ตายไม่คาดคิด</p>
+                    <p className="text-xl font-bold text-slate-600">{analytics.ipdUnexpectedDeath || 0}</p>
+                    <p className="text-[10px] text-slate-600">ครั้ง</p>
+                  </div>
+                  {/* Pressure Ulcer */}
+                  <div className="bg-gradient-to-br from-purple-50 to-violet-50 rounded-xl p-4 border border-purple-100">
+                    <p className="text-[10px] font-semibold text-purple-700 uppercase mb-1">Pressure Ulcer</p>
+                    <p className="text-xl font-bold text-purple-600">{analytics.pressureUlcerRateAvg}</p>
+                    <p className="text-[10px] text-purple-600">ต่อ 1000 วันนอน</p>
+                  </div>
                 </div>
-              )}
-            </section>
+              </section>
+            )}
+
+
+            {/* Professional Charts Section */}
+            {yearRecords.length > 0 && (() => {
+              const chartData = MONTHS_TH.map(monthName => {
+                const record = yearRecords.find(r => r.month === monthName);
+                return {
+                  month: monthName.slice(0, 3),
+                  productivity: record ? parseFloat(record.data.productivityValue?.replace('%', '') || "0") : null,
+                  los: record ? parseFloat(record.data.averageLOS || "0") : null,
+                  wrongPatient: record ? parseFloat(record.data.s1_1 || "0") : null,
+                  wrongTreatment: record ? parseFloat(record.data.s1_2 || "0") : null,
+                  unexpectedDeath: record ? parseFloat(record.data.s1_5 || "0") : null,
+                  readmission: record ? parseFloat(record.data.readmissionRate?.replace('%', '') || "0") : null,
+                  pressureUlcer: record ? parseFloat(record.data.pressureUlcerRate || "0") : null,
+                };
+              });
+
+              return (
+                <section className="bg-white rounded-2xl shadow-sm p-5 border border-slate-100 space-y-6">
+                  <div className="flex items-center gap-3 mb-2">
+                    <div className="w-10 h-10 rounded-lg bg-indigo-100 text-indigo-600 flex items-center justify-center">📊</div>
+                    <div>
+                      <h4 className="text-base font-semibold text-slate-800">แนวโน้มและการเปรียบเทียบ</h4>
+                      <p className="text-xs text-slate-500">วิเคราะห์ข้อมูลเชิงสถิติแต่ละเดือนและภาพรวม</p>
+                    </div>
+                  </div>
+
+                  <div>
+                    <p className="text-xs font-medium text-slate-600 mb-3">📈 Productivity & LOS เฉลี่ย</p>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                        <XAxis dataKey="month" tick={{ fill: '#64748b', fontSize: 12 }} stroke="#94a3b8" />
+                        <YAxis yAxisId="left" tick={{ fill: '#64748b', fontSize: 12 }} stroke="#10b981" label={{ value: 'Productivity (%)', angle: -90, position: 'insideLeft', style: { fill: '#10b981', fontSize: 11, fontWeight: 600 } }} />
+                        <YAxis yAxisId="right" orientation="right" tick={{ fill: '#64748b', fontSize: 12 }} stroke="#f59e0b" label={{ value: 'LOS (วัน)', angle: 90, position: 'insideRight', style: { fill: '#f59e0b', fontSize: 11, fontWeight: 600 } }} />
+                        <Tooltip
+                          contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '12px', padding: '8px 12px' }}
+                          formatter={(value: any, name: string) => [
+                            typeof value === 'number' ? value.toFixed(2) : value,
+                            name
+                          ]}
+                        />
+                        <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
+                        <ReferenceLine yAxisId="left" y={80} stroke="#10b981" strokeDasharray="5 5" strokeWidth={1.5} label={{ value: 'เป้าหมาย 80%', fill: '#10b981', fontSize: 10, fontWeight: 600 }} />
+                        <Line yAxisId="left" type="monotone" dataKey="productivity" stroke="#10b981" strokeWidth={3} dot={{ fill: '#10b981', r: 5, strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 7 }} name="Productivity (%)" connectNulls>
+                          <LabelList dataKey="productivity" position="top" fill="#10b981" fontSize={10} fontWeight="600" formatter={(value: any) => value ? `${value.toFixed(1)}%` : ''} />
+                        </Line>
+                        <Line yAxisId="right" type="monotone" dataKey="los" stroke="#f59e0b" strokeWidth={3} dot={{ fill: '#f59e0b', r: 5, strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 7 }} name="LOS (วัน)" connectNulls>
+                          <LabelList dataKey="los" position="bottom" fill="#f59e0b" fontSize={10} fontWeight="600" formatter={(value: any) => value ? value.toFixed(1) : ''} />
+                        </Line>
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  <div>
+                    <p className="text-xs font-medium text-slate-600 mb-3">🛡️ Safety Incidents</p>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <BarChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                        <XAxis dataKey="month" tick={{ fill: '#64748b', fontSize: 12 }} stroke="#94a3b8" />
+                        <YAxis tick={{ fill: '#64748b', fontSize: 12 }} stroke="#94a3b8" label={{ value: 'จำนวนครั้ง', angle: -90, position: 'insideLeft', style: { fontSize: 11, fontWeight: 600 } }} />
+                        <Tooltip
+                          contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '12px', padding: '8px 12px' }}
+                          formatter={(value: any) => [`${value} ครั้ง`, '']}
+                        />
+                        <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
+                        <Bar dataKey="wrongPatient" fill="#fb923c" name="ระบุตัวผิด" radius={[4, 4, 0, 0]}>
+                          <LabelList dataKey="wrongPatient" position="top" fill="#fb923c" fontSize={10} fontWeight="600" formatter={(value: any) => value || ''} />
+                        </Bar>
+                        <Bar dataKey="wrongTreatment" fill="#f87171" name="รักษาผิดคน" radius={[4, 4, 0, 0]}>
+                          <LabelList dataKey="wrongTreatment" position="top" fill="#f87171" fontSize={10} fontWeight="600" formatter={(value: any) => value || ''} />
+                        </Bar>
+                        <Bar dataKey="unexpectedDeath" fill="#94a3b8" name="ตายไม่คาดคิด" radius={[4, 4, 0, 0]}>
+                          <LabelList dataKey="unexpectedDeath" position="top" fill="#94a3b8" fontSize={10} fontWeight="600" formatter={(value: any) => value || ''} />
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+
+                  <div>
+                    <p className="text-xs font-medium text-slate-600 mb-3">💎 Quality Metrics</p>
+                    <ResponsiveContainer width="100%" height={300}>
+                      <LineChart data={chartData} margin={{ top: 20, right: 30, left: 20, bottom: 5 }}>
+                        <CartesianGrid strokeDasharray="3 3" stroke="#e2e8f0" />
+                        <XAxis dataKey="month" tick={{ fill: '#64748b', fontSize: 12 }} stroke="#94a3b8" />
+                        <YAxis tick={{ fill: '#64748b', fontSize: 12 }} stroke="#94a3b8" label={{ value: 'Rate (%)', angle: -90, position: 'insideLeft', style: { fontSize: 11, fontWeight: 600 } }} />
+                        <Tooltip
+                          contentStyle={{ backgroundColor: '#fff', border: '1px solid #e2e8f0', borderRadius: '8px', fontSize: '12px', padding: '8px 12px' }}
+                          formatter={(value: any, name: string) => [
+                            typeof value === 'number' ? `${value.toFixed(2)}%` : value,
+                            name
+                          ]}
+                        />
+                        <Legend wrapperStyle={{ fontSize: '12px', paddingTop: '10px' }} />
+                        <Line type="monotone" dataKey="readmission" stroke="#0ea5e9" strokeWidth={3} dot={{ fill: '#0ea5e9', r: 5, strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 7 }} name="Readmission (%)" connectNulls>
+                          <LabelList dataKey="readmission" position="top" fill="#0ea5e9" fontSize={10} fontWeight="600" formatter={(value: any) => value ? `${value.toFixed(1)}%` : ''} />
+                        </Line>
+                        <Line type="monotone" dataKey="pressureUlcer" stroke="#a855f7" strokeWidth={3} dot={{ fill: '#a855f7', r: 5, strokeWidth: 2, stroke: '#fff' }} activeDot={{ r: 7 }} name="Pressure Ulcer" connectNulls>
+                          <LabelList dataKey="pressureUlcer" position="bottom" fill="#a855f7" fontSize={10} fontWeight="600" formatter={(value: any) => value ? value.toFixed(2) : ''} />
+                        </Line>
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </section>
+              );
+            })()}
 
             {/* Year Status Section */}
             <section className="bg-white rounded-2xl shadow-sm p-5 border border-slate-100 space-y-3">
@@ -2198,35 +5219,18 @@ export default function HomePage() {
                     ))}
                   </select>
                 </div>
-                <div className="flex flex-col md:flex-row items-stretch md:items-end gap-2">
-                  <button
-                    type="button"
-                    onClick={handleLoadPeriod}
-                    className="flex-1 inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-500 text-white text-sm font-semibold shadow hover:shadow-md"
-                  >
-                    <span>🔍</span> โหลดข้อมูล
-                  </button>
-                  <button
-                    type="button"
-                    onClick={handleLoadYear}
-                    className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg bg-slate-100 text-slate-700 text-sm font-medium hover:bg-slate-200"
-                  >
-                    🔄 อัปเดต
-                  </button>
-                </div>
               </div>
               {loading && <p className="text-[11px] text-slate-500 mt-2">กำลังดำเนินการ...</p>}
             </section>
 
             {alert && (
               <div
-                className={`border-l-4 p-3 rounded text-xs md:text-sm ${
-                  alert.type === "success"
-                    ? "bg-emerald-50 border-emerald-500 text-emerald-800"
-                    : alert.type === "warning"
+                className={`border-l-4 p-3 rounded text-xs md:text-sm ${alert.type === "success"
+                  ? "bg-emerald-50 border-emerald-500 text-emerald-800"
+                  : alert.type === "warning"
                     ? "bg-amber-50 border-amber-500 text-amber-800"
                     : "bg-rose-50 border-rose-500 text-rose-800"
-                }`}
+                  }`}
               >
                 {alert.message}
               </div>
@@ -2240,39 +5244,51 @@ export default function HomePage() {
                 {sectionConfig.map(section => (
                   <div
                     key={section.key}
-                    className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 space-y-4"
+                    className="bg-white rounded-2xl shadow-lg border border-slate-100 overflow-hidden hover:shadow-xl transition-shadow duration-300"
                   >
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="flex items-center gap-3">
-                        <span className="w-9 h-9 rounded-lg bg-indigo-50 text-indigo-600 flex items-center justify-center text-lg">
+                    {/* Beautiful Gradient Header */}
+                    <div className={`${getSectionGradientClass(section.key)} px-6 py-5 text-white shadow-md`}>
+                      <div className="flex items-center gap-4">
+                        <span className="text-3xl drop-shadow-lg animate-subtle-pulse">
                           {section.icon}
                         </span>
-                        <h3 className="text-sm md:text-base font-semibold text-slate-800">{section.title}</h3>
+                        <div className="flex-1">
+                          <h3 className="text-lg md:text-xl font-bold tracking-tight drop-shadow-md">
+                            {section.title}
+                          </h3>
+                          <p className="text-xs md:text-sm opacity-90 mt-0.5">
+                            {section.fields.length} รายการ
+                          </p>
+                        </div>
                       </div>
                     </div>
 
-                    {section.highlight && (
-                      <div className="bg-gradient-to-r from-emerald-500 via-teal-500 to-green-500 text-white rounded-xl p-4 shadow-inner">
-                        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
-                          <div>
-                            <p className="text-xs uppercase tracking-wide opacity-90">Productivity</p>
-                            <div className="text-2xl font-bold">{fields.productivityValue || "0.00%"}</div>
-                            <p className="text-sm text-emerald-50">เกณฑ์คือ ≥80%</p>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-xs uppercase tracking-wide opacity-90">Actual HPPD</p>
-                            <div className="text-2xl font-bold">{fields.actualHPPD || "0.00"}</div>
-                            <p className="text-sm text-emerald-50">ชั่วโมงต่อวัน</p>
+                    {/* Content Area */}
+                    <div className="p-6 space-y-4">
+                      {section.highlight && (
+                        <div className="bg-gradient-to-r from-emerald-500 via-teal-500 to-green-500 text-white rounded-xl p-5 shadow-lg">
+                          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3">
+                            <div>
+                              <p className="text-xs uppercase tracking-wide opacity-90 font-semibold">Productivity</p>
+                              <div className="text-3xl font-bold mt-1">{fields.productivityValue || "0.00%"}</div>
+                              <p className="text-sm text-emerald-50 mt-1">เกณฑ์คือ ≥80%</p>
+                            </div>
+                            <div className="text-right">
+                              <p className="text-xs uppercase tracking-wide opacity-90 font-semibold">Actual HPPD</p>
+                              <div className="text-3xl font-bold mt-1">{fields.actualHPPD || "0.00"}</div>
+                              <p className="text-sm text-emerald-50 mt-1">ชั่วโมงต่อวัน</p>
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    )}
+                      )}
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
-                      {section.fields.map(fid => renderFieldInput(fid))}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        {section.fields.map(fid => renderFieldInput(fid))}
+                      </div>
                     </div>
                   </div>
                 ))}
+
 
                 {/* Note Field */}
                 <div className="bg-white rounded-2xl shadow-sm border border-slate-100 p-5 space-y-3">
@@ -2317,11 +5333,10 @@ export default function HomePage() {
                       return (
                         <div
                           key={m}
-                          className={`text-center p-2 rounded-lg text-[10px] font-medium transition-all ${
-                            hasData
-                              ? "bg-emerald-100 text-emerald-700"
-                              : "bg-slate-50 text-slate-400"
-                          }`}
+                          className={`text-center p-2 rounded-lg text-[10px] font-medium transition-all ${hasData
+                            ? "bg-emerald-100 text-emerald-700"
+                            : "bg-slate-50 text-slate-400"
+                            }`}
                           title={hasData ? `บันทึกแล้ว: ${m}` : `ยังไม่บันทึก: ${m}`}
                         >
                           {m.slice(0, 3)}
@@ -2358,22 +5373,80 @@ export default function HomePage() {
                     <h4 className="text-sm font-semibold text-slate-800">สรุปตัวชี้วัด</h4>
                   </div>
                   <div className="space-y-2">
-                    <div className="flex justify-between items-center text-[11px]">
-                      <span className="text-slate-600">Avg. Productivity</span>
-                      <span className="font-semibold text-indigo-700">{analytics.averageProductivity}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-[11px]">
-                      <span className="text-slate-600">Avg. LOS</span>
-                      <span className="font-semibold text-emerald-700">{analytics.averageLOS} วัน</span>
-                    </div>
-                    <div className="flex justify-between items-center text-[11px]">
-                      <span className="text-slate-600">CPR Success</span>
-                      <span className="font-semibold text-amber-700">{analytics.totalCPRSuccess} ครั้ง</span>
-                    </div>
-                    <div className="flex justify-between items-center text-[11px]">
-                      <span className="text-slate-600">Avg. Pressure Ulcer</span>
-                      <span className="font-semibold text-rose-700">{analytics.pressureUlcerRateAvg}</span>
-                    </div>
+                    {role === "special_unit" && analytics.metric1?.label ? (
+                      <>
+                        <div className="flex justify-between items-center text-[11px]">
+                          <span className="text-slate-600">{analytics.metric1.label}</span>
+                          <span className="font-semibold text-indigo-700">{analytics.metric1.value}{analytics.metric1.suffix}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-[11px]">
+                          <span className="text-slate-600">{analytics.metric2.label}</span>
+                          <span className="font-semibold text-emerald-700">{analytics.metric2.value}{analytics.metric2.suffix}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-[11px]">
+                          <span className="text-slate-600">{analytics.metric3.label}</span>
+                          <span className="font-semibold text-amber-700">{analytics.metric3.value} {analytics.metric3.suffix}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-[11px]">
+                          <span className="text-slate-600">{analytics.metric4.label}</span>
+                          <span className="font-semibold text-rose-700">{analytics.metric4.value}{analytics.metric4.suffix}</span>
+                        </div>
+                      </>
+                    ) : role === "opd" ? (
+                      <>
+                        <div className="flex justify-between items-center text-[11px]">
+                          <span className="text-slate-600">ระบุตัว ผป.ผิด</span>
+                          <span className="font-semibold text-amber-700">{analytics.opdWrongPatientId || 0} ครั้ง</span>
+                        </div>
+                        <div className="flex justify-between items-center text-[11px]">
+                          <span className="text-slate-600">รักษาผิดคน</span>
+                          <span className="font-semibold text-rose-700">{analytics.opdWrongTreatment || 0} ครั้ง</span>
+                        </div>
+                        <div className="flex justify-between items-center text-[11px]">
+                          <span className="text-slate-600">ตายไม่คาดคิด</span>
+                          <span className="font-semibold text-slate-700">{analytics.opdUnexpectedDeath || 0} ครั้ง</span>
+                        </div>
+                        <div className="flex justify-between items-center text-[11px]">
+                          <span className="text-slate-600">อุบัติเหตุบุคลากร</span>
+                          <span className="font-semibold text-purple-700">{analytics.opdStaffAccidents || 0} ครั้ง</span>
+                        </div>
+                        <div className="flex justify-between items-center text-[11px]">
+                          <span className="text-slate-600">CPR Success Rate</span>
+                          <span className="font-semibold text-emerald-700">{analytics.opdCPRRate || '0.00'}%</span>
+                        </div>
+                      </>
+                    ) : (
+                      <>
+                        <div className="flex justify-between items-center text-[11px]">
+                          <span className="text-slate-600">Productivity เฉลี่ย</span>
+                          <span className="font-semibold text-indigo-700">{analytics.averageProductivity}</span>
+                        </div>
+                        <div className="flex justify-between items-center text-[11px]">
+                          <span className="text-slate-600">LOS เฉลี่ย</span>
+                          <span className="font-semibold text-emerald-700">{analytics.averageLOS} วัน</span>
+                        </div>
+                        <div className="flex justify-between items-center text-[11px]">
+                          <span className="text-slate-600">Readmission Rate</span>
+                          <span className="font-semibold text-cyan-700">{analytics.ipdReadmissionRate || '0.00'}%</span>
+                        </div>
+                        <div className="flex justify-between items-center text-[11px]">
+                          <span className="text-slate-600">ระบุตัว ผป.ผิด</span>
+                          <span className="font-semibold text-amber-700">{analytics.ipdWrongPatientId || 0} ครั้ง</span>
+                        </div>
+                        <div className="flex justify-between items-center text-[11px]">
+                          <span className="text-slate-600">รักษาผิดคน</span>
+                          <span className="font-semibold text-rose-700">{analytics.ipdWrongTreatment || 0} ครั้ง</span>
+                        </div>
+                        <div className="flex justify-between items-center text-[11px]">
+                          <span className="text-slate-600">ตายไม่คาดคิด</span>
+                          <span className="font-semibold text-slate-700">{analytics.ipdUnexpectedDeath || 0} ครั้ง</span>
+                        </div>
+                        <div className="flex justify-between items-center text-[11px]">
+                          <span className="text-slate-600">Pressure Ulcer</span>
+                          <span className="font-semibold text-purple-700">{analytics.pressureUlcerRateAvg}</span>
+                        </div>
+                      </>
+                    )}
                   </div>
                 </div>
 
@@ -2426,9 +5499,9 @@ export default function HomePage() {
 
       <footer className="bg-white border-t border-slate-200 mt-8">
         <div className="max-w-7xl mx-auto px-4 py-3 text-center text-xs text-slate-500">
-          <p>© 2568 ระบบบันทึกข้อมูล QA โรงพยาบาลหนองบัวลำภู - Developed by ปริญญา แก้วสุโพธิ์ พยาบาลวิชาชีพชำนาญการ Next.js</p>
+          <p>© 2568 ระบบบันทึกข้อมูลตัตัวชี้วัดทางการพยาบาล โรงพยาบาลหนองบัวลำภู - Developed by ปริญญา แก้วสุโพธิ์ พยาบาลวิชาชีพชำนาญการ Tel:062-880-4373 </p>
         </div>
       </footer>
-    </div>
+    </div >
   );
 }

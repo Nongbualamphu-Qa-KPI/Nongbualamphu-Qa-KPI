@@ -1,16 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import fs from "fs";
-import path from "path";
-
-type QARecord = {
-  id: string;
-  departmentId: string;
-  departmentName: string;
-  fiscalYear: string;
-  month: string;
-  data: Record<string, string>;
-  updatedAt: string;
-};
+import { getRecordsByYear } from "@/lib/storage";
 
 const MONTHS_TH = [
   "ตุลาคม",
@@ -27,27 +16,6 @@ const MONTHS_TH = [
   "กันยายน"
 ];
 
-function readData(): { records: QARecord[] } {
-  const dataPath = path.join(process.cwd(), "data", "qa-data.json");
-  
-  if (!fs.existsSync(dataPath)) {
-    const dir = path.dirname(dataPath);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-    fs.writeFileSync(dataPath, JSON.stringify({ records: [] }, null, 2));
-    return { records: [] };
-  }
-
-  try {
-    const content = fs.readFileSync(dataPath, "utf-8");
-    return JSON.parse(content);
-  } catch (error) {
-    console.error("Error reading data:", error);
-    return { records: [] };
-  }
-}
-
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
@@ -61,10 +29,7 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const storage = readData();
-    const records = storage.records.filter(
-      r => r.departmentId === departmentId && r.fiscalYear === fiscalYear
-    );
+    const records = await getRecordsByYear(departmentId, fiscalYear);
 
     // Create month map
     const data: Record<string, any> = {};

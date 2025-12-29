@@ -1,5 +1,0 @@
-{
-  "/api/qa/by-year/route": "app/api/qa/by-year/route.js",
-  "/page": "app/page.js",
-  "/api/qa/by-period/route": "app/api/qa/by-period/route.js"
-}

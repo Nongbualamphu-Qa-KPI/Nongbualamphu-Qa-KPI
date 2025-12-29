@@ -1,7 +1,8 @@
-import fs from "fs";
-import path from "path";
+import { prisma } from "./prisma";
+import type { QARecord as PrismaQARecord } from "@prisma/client";
 
-type QARecord = {
+// Define the shape that the frontend expects
+export type QARecord = {
   id: string;
   departmentId: string;
   departmentName: string;
@@ -11,43 +12,17 @@ type QARecord = {
   updatedAt: string;
 };
 
-type StorageData = {
-  records: QARecord[];
-};
-
-const DATA_FILE_PATH = path.join(process.cwd(), "data", "qa-data.json");
-
-// Ensure data directory exists
-function ensureDataDirectory() {
-  const dir = path.dirname(DATA_FILE_PATH);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-}
-
-// Read data from file
-function readData(): StorageData {
-  ensureDataDirectory();
-  
-  if (!fs.existsSync(DATA_FILE_PATH)) {
-    const emptyData: StorageData = { records: [] };
-    fs.writeFileSync(DATA_FILE_PATH, JSON.stringify(emptyData, null, 2));
-    return emptyData;
-  }
-
-  try {
-    const content = fs.readFileSync(DATA_FILE_PATH, "utf-8");
-    return JSON.parse(content) as StorageData;
-  } catch (error) {
-    console.error("Error reading data file:", error);
-    return { records: [] };
-  }
-}
-
-// Write data to file
-function writeData(data: StorageData): void {
-  ensureDataDirectory();
-  fs.writeFileSync(DATA_FILE_PATH, JSON.stringify(data, null, 2));
+// Helper to convert Prisma result to our frontend type
+function mapToQARecord(r: PrismaQARecord): QARecord {
+  return {
+    id: r.id,
+    departmentId: r.departmentId,
+    departmentName: r.departmentName,
+    fiscalYear: r.fiscalYear.toString(),
+    month: r.month,
+    data: (r.data as Record<string, string>) || {},
+    updatedAt: r.updatedAt.toISOString(),
+  };
 }
 
 // Save or update a record
@@ -58,32 +33,31 @@ export async function saveRecord(
   month: string,
   data: Record<string, string>
 ): Promise<QARecord> {
-  const storage = readData();
-  const recordId = `${departmentId}-${fiscalYear}-${month}`;
-  
-  // Find existing record
-  const existingIndex = storage.records.findIndex(r => r.id === recordId);
-  
-  const record: QARecord = {
-    id: recordId,
-    departmentId,
-    departmentName,
-    fiscalYear,
-    month,
-    data,
-    updatedAt: new Date().toISOString()
-  };
-  
-  if (existingIndex >= 0) {
-    // Update existing record
-    storage.records[existingIndex] = record;
-  } else {
-    // Add new record
-    storage.records.push(record);
-  }
-  
-  writeData(storage);
-  return record;
+  const yearInt = parseInt(fiscalYear, 10);
+
+  // Upsert using the unique compound index
+  const result = await prisma.qARecord.upsert({
+    where: {
+      qa_unique_index: {
+        departmentId,
+        fiscalYear: yearInt,
+        month,
+      },
+    },
+    update: {
+      departmentName,
+      data,
+    },
+    create: {
+      departmentId,
+      departmentName,
+      fiscalYear: yearInt,
+      month,
+      data,
+    },
+  });
+
+  return mapToQARecord(result);
 }
 
 // Get record by period
@@ -92,9 +66,17 @@ export async function getRecordByPeriod(
   fiscalYear: string,
   month: string
 ): Promise<QARecord | null> {
-  const storage = readData();
-  const recordId = `${departmentId}-${fiscalYear}-${month}`;
-  return storage.records.find(r => r.id === recordId) || null;
+  const result = await prisma.qARecord.findUnique({
+    where: {
+      qa_unique_index: {
+        departmentId,
+        fiscalYear: parseInt(fiscalYear, 10),
+        month,
+      },
+    },
+  });
+
+  return result ? mapToQARecord(result) : null;
 }
 
 // Get records by year
@@ -102,10 +84,19 @@ export async function getRecordsByYear(
   departmentId: string,
   fiscalYear: string
 ): Promise<QARecord[]> {
-  const storage = readData();
-  return storage.records.filter(
-    r => r.departmentId === departmentId && r.fiscalYear === fiscalYear
-  );
+  const results = await prisma.qARecord.findMany({
+    where: {
+      departmentId,
+      fiscalYear: parseInt(fiscalYear, 10),
+    },
+    orderBy: {
+      month: "asc",
+      // Note: Thai months sorting might need specific logic if 'asc' isn't chronological, 
+      // but usually the frontend handles display order or we rely on insertion/mapped order.
+    },
+  });
+
+  return results.map(mapToQARecord);
 }
 
 // Delete a record
@@ -114,28 +105,42 @@ export async function deleteRecord(
   fiscalYear: string,
   month: string
 ): Promise<boolean> {
-  const storage = readData();
-  const recordId = `${departmentId}-${fiscalYear}-${month}`;
-  
-  const initialLength = storage.records.length;
-  storage.records = storage.records.filter(r => r.id !== recordId);
-  
-  if (storage.records.length < initialLength) {
-    writeData(storage);
+  try {
+    await prisma.qARecord.delete({
+      where: {
+        qa_unique_index: {
+          departmentId,
+          fiscalYear: parseInt(fiscalYear, 10),
+          month,
+        },
+      },
+    });
     return true;
+  } catch (error) {
+    // Record not found or other error
+    return false;
   }
-  
-  return false;
 }
 
 // Get all records
 export async function getAllRecords(): Promise<QARecord[]> {
-  const storage = readData();
-  return storage.records;
+  const results = await prisma.qARecord.findMany({
+    orderBy: {
+      updatedAt: "desc",
+    },
+  });
+  return results.map(mapToQARecord);
 }
 
 // Get records by department
 export async function getRecordsByDepartment(departmentId: string): Promise<QARecord[]> {
-  const storage = readData();
-  return storage.records.filter(r => r.departmentId === departmentId);
+  const results = await prisma.qARecord.findMany({
+    where: {
+      departmentId,
+    },
+    orderBy: {
+      fiscalYear: "desc",
+    },
+  });
+  return results.map(mapToQARecord);
 }

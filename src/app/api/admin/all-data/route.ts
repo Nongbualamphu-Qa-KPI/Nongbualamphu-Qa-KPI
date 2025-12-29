@@ -1,43 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import fs from "fs";
-import path from "path";
-
-type QARecord = {
-  id: string;
-  departmentId: string;
-  departmentName: string;
-  fiscalYear: string;
-  month: string;
-  data: Record<string, string>;
-  updatedAt: string;
-};
+import { getAllRecords } from "@/lib/storage";
 
 export async function GET(request: NextRequest) {
   try {
     const searchParams = request.nextUrl.searchParams;
     const fiscalYear = searchParams.get("fiscalYear");
 
-    // Read data directly from file system
-    const dataPath = path.join(process.cwd(), "data", "qa-data.json");
-    
-    if (!fs.existsSync(dataPath)) {
-      // Create empty data file if it doesn't exist
-      fs.mkdirSync(path.dirname(dataPath), { recursive: true });
-      fs.writeFileSync(dataPath, JSON.stringify({ records: [] }, null, 2));
-      return NextResponse.json({
-        success: true,
-        data: [],
-        totalRecords: 0
-      });
-    }
-
-    const fileContent = fs.readFileSync(dataPath, "utf-8");
-    const data = JSON.parse(fileContent) as { records: QARecord[] };
+    const records = await getAllRecords();
 
     // Filter by fiscal year if provided
-    let filteredRecords = data.records || [];
+    let filteredRecords = records;
     if (fiscalYear) {
-      filteredRecords = filteredRecords.filter(r => r.fiscalYear === fiscalYear);
+      filteredRecords = records.filter(r => r.fiscalYear === fiscalYear);
     }
 
     // Sort by department and month
@@ -47,7 +21,7 @@ export async function GET(request: NextRequest) {
       }
       // Sort months in fiscal year order
       const monthOrder = [
-        "ตุลาคม", "พฤศจิกายน", "ธันวาคม", 
+        "ตุลาคม", "พฤศจิกายน", "ธันวาคม",
         "มกราคม", "กุมภาพันธ์", "มีนาคม",
         "เมษายน", "พฤษภาคม", "มิถุนายน",
         "กรกฎาคม", "สิงหาคม", "กันยายน"

@@ -1,46 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import fs from "fs";
-import path from "path";
-
-type QARecord = {
-  id: string;
-  departmentId: string;
-  departmentName: string;
-  fiscalYear: string;
-  month: string;
-  data: Record<string, string>;
-  updatedAt: string;
-};
-
-function readData(): { records: QARecord[] } {
-  const dataPath = path.join(process.cwd(), "data", "qa-data.json");
-  
-  if (!fs.existsSync(dataPath)) {
-    const dir = path.dirname(dataPath);
-    if (!fs.existsSync(dir)) {
-      fs.mkdirSync(dir, { recursive: true });
-    }
-    fs.writeFileSync(dataPath, JSON.stringify({ records: [] }, null, 2));
-    return { records: [] };
-  }
-
-  try {
-    const content = fs.readFileSync(dataPath, "utf-8");
-    return JSON.parse(content);
-  } catch (error) {
-    console.error("Error reading data:", error);
-    return { records: [] };
-  }
-}
-
-function writeData(data: { records: QARecord[] }): void {
-  const dataPath = path.join(process.cwd(), "data", "qa-data.json");
-  const dir = path.dirname(dataPath);
-  if (!fs.existsSync(dir)) {
-    fs.mkdirSync(dir, { recursive: true });
-  }
-  fs.writeFileSync(dataPath, JSON.stringify(data, null, 2));
-}
+import { deleteRecord } from "@/lib/storage";
 
 export async function POST(request: NextRequest) {
   try {
@@ -54,14 +13,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const storage = readData();
-    const recordId = `${departmentId}-${fiscalYear}-${month}`;
-    
-    const initialLength = storage.records.length;
-    storage.records = storage.records.filter(r => r.id !== recordId);
-    
-    if (storage.records.length < initialLength) {
-      writeData(storage);
+    const deleted = await deleteRecord(departmentId, fiscalYear, month);
+
+    if (deleted) {
       return NextResponse.json({
         success: true,
         message: "ลบข้อมูลสำเร็จ"
