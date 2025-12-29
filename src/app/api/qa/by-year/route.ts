@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getRecordsByYear } from "@/lib/storage";
 
+export const dynamic = 'force-dynamic';
 const MONTHS_TH = [
   "ตุลาคม",
   "พฤศจิกายน",

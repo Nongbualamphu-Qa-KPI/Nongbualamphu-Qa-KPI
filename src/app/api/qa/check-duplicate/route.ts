@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getRecordByPeriod } from "@/lib/storage";
 
+export const dynamic = 'force-dynamic';
 /**
  * Check if a record already exists for the given department, fiscal year, and month.
  * This API helps prevent duplicate data entry by warning users before they save.

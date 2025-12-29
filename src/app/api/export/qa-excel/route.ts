@@ -3,6 +3,7 @@ import fs from "fs";
 import path from "path";
 import * as XLSX from "xlsx";
 
+export const dynamic = 'force-dynamic';
 // Department definitions
 const DEPARTMENTS = {
     ipd: [
